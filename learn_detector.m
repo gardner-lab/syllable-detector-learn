@@ -89,10 +89,6 @@ if exist('use_previously_trained_network', 'var') & ~isempty(use_previously_trai
 end
 
 
-p = fileparts(mfilename('fullpath'));
-addpath(sprintf('%s/../lib', p));
-
-
 rng('shuffle');
 
 

@@ -1,12 +1,12 @@
-### Installation:
+#### Installation:
 
 Make a local clone of this repository, with something like `git clone https://github.com/gardner-lab/syllable-detector-learn`.  You probably want to put the directory in your MATLAB path.
 
 Install the following third-party packages from the MATLAB File Exchange, and make sure they're in your MATLAB path:
-* Significant Figures by Teck Por Lam.  File ID #10669
-* Generate maximally perceptually-distinct colors by Tim Holy.  File ID #29702
+* [_Significant Figures_ by Teck Por Lam.  File ID #10669](https://www.mathworks.com/matlabcentral/fileexchange/10669-significant-figures)
+* [_Generate maximally perceptually-distinct colors_ by Tim Holy.  File ID #29702](https://www.mathworks.com/matlabcentral/fileexchange/29702-generate-maximally-perceptually-distinct-colors)
 
-### Running:
+#### Running:
 
 The entry point is `learn_detector.m`.
 

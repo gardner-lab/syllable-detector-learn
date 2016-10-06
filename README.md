@@ -1,6 +1,6 @@
 #### Installation:
 
-Make a local clone of this repository, with something like `git clone https://github.com/gardner-lab/syllable-detector-learn`.  You probably want to put the directory in your MATLAB path.
+Make a local clone of this repository, with something like `git clone https://github.com/gardner-lab/syllable-detector-learn`.  You probably want to put the resulting directory in your MATLAB path.
 
 Install the following third-party packages from the MATLAB File Exchange, and make sure they're in your MATLAB path:
 * [_Significant Figures_ by Teck Por Lam.  File ID #10669](https://www.mathworks.com/matlabcentral/fileexchange/10669-significant-figures)
@@ -28,4 +28,6 @@ Create a MATLAB script file (`params.m`, also in the directory `<data_base_dir>/
     * Add the line "times_of_interest = [x y z ...]" for trigger times at x, y, and z (etc) seconds.  At least one time of interest is required.  I like `times_of_interest = [ x y z] / 1e3`, so you can enter milliseconds.
   * It can contain overrides for all of the other parameters whose defaults are in the Configuration section at the top of learn_detector.m
 
-Run `learn_detector` again.
+Run `learn_detector` again.  It will produce two files:
+* `detector_<bird>_<times_of_interest>_<other information>.mat`, the network file.
+* `songs_<nsongs>_<bird>_<times_of_interest_1>.wav`, an audio test file containing the songs in the left channel and short pulses on the right channel at the first time of interest.  This may be used for testing the realtime detector.

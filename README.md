@@ -1,6 +1,16 @@
-### The entry point is `learn_detector.m`
+### Installation:
 
-At the top of that file are a bunch of configuration parameters.  You can probably leave those untouched, but you should read through them to know what's available.  If you do want to touch them, do so by modifying `params.m`, below.
+Make a local clone of this repository, with something like `git clone https://github.com/gardner-lab/syllable-detector-learn`.  You probably want to put the directory in your MATLAB path.
+
+Install the following third-party packages from the MATLAB File Exchange, and make sure they're in your MATLAB path:
+* Significant Figures by Teck Por Lam.  File ID #10669
+* Generate maximally perceptually-distinct colors by Tim Holy.  File ID #29702
+
+### Running:
+
+The entry point is `learn_detector.m`.
+
+At the top of `learn_detector.m` are a bunch of configuration parameters.  You can probably leave those untouched, but you should read through them to know what's available.  If you do want to touch them, do so by modifying `params.m`, below.
 
 Edit `learn_detector.m` as follows:
 * Make sure `data_base_dir` points to your top-level data directory, which is expected to contain directories for birds by name (e.g. `lny44`)..  By default, `data_base_dir = /Volumes/Data/song`.

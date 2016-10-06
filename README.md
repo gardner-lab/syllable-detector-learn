@@ -30,4 +30,4 @@ Create a MATLAB script file (`params.m`, also in the directory `<data_base_dir>/
 
 Run `learn_detector` again.  It will produce two files:
 * `detector_<bird>_<times_of_interest>_<other information>.mat`, the network file.
-* `songs_<nsongs>_<bird>_<times_of_interest_1>.wav`, an audio test file containing the songs in the left channel and short pulses on the right channel at the first time of interest.  This may be used for testing the realtime detector.
+* `songs_<nsongs>_<bird>_<times_of_interest_1>.wav`, an audio test file containing all the provided songs in the left channel and short pulses on the right channel at `times_of_interest(1)` for each provided song.  This may be used for testing the realtime detector.

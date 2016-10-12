@@ -5,27 +5,13 @@ clear;
 %%%%%%%%%%%%%%%% Configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% First: where are the data?
-
-% Top-level data directory, which houses bird directories:
-if ispc
-    data_base_dir = 'z:\song';
-else
-    data_base_dir = '/Volumes/Data/song';
-end
-% Bird name:
-bird = 'lny64';
-%bird = 'lno57rlg';
-%bird = 'llb4';
-%bird = 'lny29';
-
 % The two required files:
-params_file = 'params';                          % data_base_dir/bird/params.m
-data_file = 'song';                              % data_base_dir/bird/song.mat
+data_file = 'song';                              % song.mat
+params_file = 'params';                          % params.m
 
 
 
-%% These are defaults.  If you want to change them, do so in data_base_dir/bird/params.m
+%% These are defaults.  If you want to change them, do so in params.m
 nhidden_per_output = 4;                          % How many hidden units per syllable?  2 works and trains fast.  4 works ~20% better...
 fft_time_shift_seconds_target = 0.0015;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train
 use_jeff_realignment_train = false;              % Micro-realign at each detection point using Jeff's time-domain code?  Don't do this.
@@ -40,28 +26,25 @@ samplerate = 44100;                              % Target samplerate should matc
 fft_size = 256;                                  % FFT size
 use_pattern_net = false;                         % Use MATLAB's pattern net (fine, but no control over false-pos vs false-neg cost)
 do_not_randomise = false;                        % Use songs in original order?
-separate_network_for_each_syllable = false;       % Train a separate network for each time of interest?  Or one network with multiple outs?
-nruns = 1;                                     % Perform a few training runs and create beeswarm plot (paper figure 3 used 100)?
+separate_network_for_each_syllable = true;       % Train a separate network for each time of interest?  Or one network with multiple outs?
+nruns = 1;                                       % Perform a few training runs and create beeswarm plot (paper figure 3 used 100)?
 freq_range = [1000 8000];                        % Frequencies of the song to examine
-time_window = 0.030;                             % How many seconds long is the time window?
+time_window_ms = 30;                             % How many seconds long is the time window?
 false_positive_cost = 1;                         % Cost of false positives is relative to that of false negatives.
 create_song_test_file = -1;                      % Big, and take some time to save.  1: always, 0: never, -1: only if nruns == 1
 
 %use_previously_trained_network = '5syll_1ms.mat' % Rather than train a new network, use this one? NO ERROR CHECKING!!!!!
 %  Finally: where do the aligned song and nonsong data files live?  And which times do we care
 %  about?
-datadir = strcat(data_base_dir, filesep, bird);
 
 % Load the user configuration.  This is done by running the params file as a .m file, which adds
 % variables to the current workspace:
-if exist('params_file', 'var') & exist(strcat(datadir, filesep, params_file, '.m'), 'file')
-    oldpath = addpath(datadir);
+if exist('params_file', 'var') & exist(strcat(params_file, '.m'), 'file')
     disp(sprintf('********** Configuration file %s: *************', ...
-        strcat(datadir, filesep, params_file, '.m')));
+        strcat(pwd, filesep, params_file, '.m')));
     type(params_file);
     eval(params_file);
     disp('**************************************************************************');
-    path(oldpath);
 end
 
 
@@ -69,17 +52,20 @@ end
 %%%%%%%%%%%%%% End Configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-if 0 % Delta function is a special test case for measuring detector latency.
+deltasong = false;
+if deltasong % Delta function is a special test case for measuring detector latency.
     agg_audio.fs = 44100;
-    bird = 'delta';
     indices = round(-0.010 * agg_audio.fs);
-    times_of_interest = 0.3;
-    samples_of_interest = round(times_of_interest * agg_audio.fs) + 1;
+    times_of_interest_ms = 300;
+    samples_of_interest = round((times_of_interest_ms / 1e3) * agg_audio.fs) + 1;
     n = 128;
     mic_data = rand([20000, n])/100;
     mic_data(samples_of_interest + indices, :) = rand([length(indices), n])/100 + 1;
 end
+
+% Convert some things to SI
+times_of_interest_s = times_of_interest_ms / 1e3;
+time_window_s = time_window_ms / 1e3;
 
 
 
@@ -91,8 +77,6 @@ end
 
 rng('shuffle');
 
-
-disp(sprintf('bird: %s', bird));
 
 
 % If confusion_log_perf.txt exists, there is the risk that something important (parameters, code...)
@@ -131,13 +115,12 @@ end
 
 
 [ mic_data, spectrograms, nsamples_per_song, nmatchingsongs, nsongsandnonsongs, timestamps, nfreqs, freqs, ntimes, times, fft_time_shift_seconds, spectrogram_avg_img_songs_log, spectrogram_power_img, freq_range_ds, time_window_steps, layer0sz, nwindows_per_song, noverlap] ...
-    = load_roboaggregate_file(datadir, ...
-    data_file, ...
+    = load_roboaggregate_file(data_file, ...
     fft_time_shift_seconds_target, ...
     samplerate, ...
     fft_size, ...
     freq_range, ...
-    time_window, ...
+    time_window_s, ...
     nonsinging_fraction, ...
     n_whitenoise);
 
@@ -152,8 +135,8 @@ axis xy;
 xlabel('Time (ms)');
 ylabel('Frequency (kHz)');
 set(gca, 'YLim', [0 10]);
-if ~exist('times_of_interest', 'var') | isempty(times_of_interest)
-    error('No times of interest defined.  Please look at the spectrogram in Figure 4 and define one or more in ''%s'', with "times_of_interest = [x y];" for detection at x and y seconds into the spectrogram.', strcat(datadir, filesep, params_file, '.m'));
+if ~exist('times_of_interest_s', 'var') | isempty(times_of_interest_s)
+    error('No times of interest defined.  Please look at the spectrogram in Figure 4 and define one or more in ''%s'', with "times_of_interest_ms = [x y];" for detection at x and y milliseconds into the spectrogram.', strcat(pwd, filesep, params_file, '.m'));
 end
 
 %% Define training set
@@ -171,16 +154,16 @@ warning('off', 'curvefit:prepareFittingData:removingNaNAndInf')
 
 
 % Just one rudimentary error-check:
-if any(times_of_interest < time_window) | any(times_of_interest > times(end))
+if any(times_of_interest_ms < time_window_ms) | any(times_of_interest_ms > times(end) * 1000)
     error('learn_detector:invalid_time', ...
-        'All times_of_interest [ %s] must be >= time_window (%g) and < %s', ...
-        sprintf('%g ', times_of_interest), time_window, times(end));
+        'All times_of_interest_ms [ %s] must be >= time_window_ms (%g) and < %s', ...
+        sprintf('%g ', times_of_interest_ms), time_window_ms, times(end) * 1000);
 end
 
 % Create informative names for the detection points:
 if ~exist('times_of_interest_names', 'var') | length(times_of_interest_names) < length(times_of_interest_separate)
-    for i = 1:length(times_of_interest)
-        times_of_interest_names{i} = sprintf('t^*_{%d}', round(1000*times_of_interest(i)));
+    for i = 1:length(times_of_interest_ms)
+        times_of_interest_names{i} = sprintf('t^*_{%d}', round(1000*times_of_interest_ms(i)));
     end
 end
 
@@ -188,10 +171,10 @@ end
 
 % Create a FOR loop over these, if necessary
 if separate_network_for_each_syllable
-    times_of_interest_separate = times_of_interest;
+    times_of_interest_separate = times_of_interest_s;
 else
     times_of_interest_separate = NaN;
-    times_of_interest_simultaneous = times_of_interest;
+    times_of_interest_simultaneous = times_of_interest_s;
 end
 
 training_times = [];
@@ -210,14 +193,14 @@ for run = first_run:nruns
     % syllable, and then continue on our merry way.
     if separate_network_for_each_syllable ...
             & exist('sylly_counts', 'var') ...
-            & length(sylly_counts) == length(times_of_interest) ...
+            & length(sylly_counts) == length(times_of_interest_s) ...
             & max(sylly_counts) ~= min(sylly_counts)
         disp(sprintf('Continuing on unfinished Run #%d...', run));
         catch_up_syllables = max(sylly_counts) - sylly_counts;
         times_of_interest_separate = [];
-        for i = length(times_of_interest):-1:1
+        for i = length(times_of_interest_s):-1:1
             for j = 1:catch_up_syllables(i)
-                times_of_interest_separate = [times_of_interest_separate times_of_interest(i)];
+                times_of_interest_separate = [times_of_interest_separate times_of_interest_s(i)];
             end
         end
         %[~, catch_up_on_which_syllable] = min(sylly_counts);
@@ -226,7 +209,7 @@ for run = first_run:nruns
         catch_up = true;
     elseif catch_up
         catch_up = false;
-        times_of_interest_separate = times_of_interest;
+        times_of_interest_separate = times_of_interest_s;
     end
         
     separate_syllable_counter = 0;
@@ -257,11 +240,11 @@ for run = first_run:nruns
         testsongs = randomorder(ntrainsongs+1:end);
         
         if separate_network_for_each_syllable
-            % "toi" will be times_of_interest(separate_syllable_counter)
+            % "toi" will be times_of_interest_s(separate_syllable_counter)
             toi = thetime;
         else
             % This is redundant, but here for readability:
-            toi = times_of_interest;
+            toi = times_of_interest_s;
         end
         
         
@@ -275,7 +258,7 @@ for run = first_run:nruns
         
         
         %% Create the training set
-        if strcmp(bird, 'delta')
+        if deltasong
             shotgun_sigma = 0.00001;
         else
             shotgun_sigma = 0.002; % TUNE
@@ -351,9 +334,9 @@ for run = first_run:nruns
         % Draw the syllables of interest:
         for i = 1:ntsteps_of_interest
             line(toi(i)*[1;1]*1000, freqs([1 end])/1000, 'Color', [1 0 0]);
-            windowrect = rectangle('Position', [(toi(i) - time_window)*1000 ...
+            windowrect = rectangle('Position', [(toi(i) - time_window_s)*1000 ...
                 freq_range(1)/1000 ...
-                time_window(1)*1000 ...
+                time_window_s(1)*1000 ...
                 (freq_range(2)-freq_range(1))/1000], ...
                 'EdgeColor', [1 0 0]);
         end
@@ -600,9 +583,9 @@ for run = first_run:nruns
             
             if ~SORT_BY_ALIGNMENT
                 %% Show coloration by labeling the blocks of training and test songs
-                text(time_window/2*1000, ntrainsongs/2, 'train', ...
+                text(time_window_s/2*1000, ntrainsongs/2, 'train', ...
                     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Rotation', 90);
-                text(time_window/2*1000, ntrainsongs+ntestsongs/2, 'test', ...
+                text(time_window_s/2*1000, ntrainsongs+ntestsongs/2, 'test', ...
                     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Rotation', 90);
             elseif raster_colour_left_bar
                 %% Show colouration by labeling the largest contiguous blocks of training and test songs
@@ -628,9 +611,9 @@ for run = first_run:nruns
                     testcentre = traincentre;
                     traincentre = foo;
                 end
-                text(time_window/2*1000+3, traincentre, 'train', ...
+                text(time_window_s/2*1000+3, traincentre, 'train', ...
                     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Rotation', 0);
-                text(time_window/2*1000+3, testcentre, 'test', ...
+                text(time_window_s/2*1000+3, testcentre, 'test', ...
                     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Rotation', 0);
             else
                 %% Show colouration via a legend
@@ -852,11 +835,11 @@ for run = first_run:nruns
         win_size = fft_size;
         fft_time_shift = fft_size - noverlap;
         scaling = 'linear';
-        filename = sprintf('detector_%s%ss_frame%gms_%dhid_%dtrain.mat', ...
-            bird, sprintf('_%g', toi), 1000*fft_time_shift_seconds_target, net.layers{1}.dimensions, ntrainsongs);
+        filename = sprintf('detector_%ss_frame%gms_%dhid_%dtrain.mat', ...
+            sprintf('_%g', toi), 1000*fft_time_shift_seconds_target, net.layers{1}.dimensions, ntrainsongs);
         fprintf('Saving as ''%s''...\n', filename);
         save(filename, ...
-            'bird', 'times_of_interest', 'toi', 'net', 'train_record', ...
+            'times_of_interest_s', 'toi', 'net', 'train_record', ...
             'samplerate', 'fft_size', 'win_size', 'fft_time_shift', 'fft_time_shift_seconds', 'fft_time_shift_seconds_target', ...
             'freq_range_ds', ...
             'time_window_steps', 'trigger_thresholds', 'freq_range', ...
@@ -896,8 +879,8 @@ for run = first_run:nruns
                 end
                 hits = reshape(hits, [], 1);
                 songs = [songs hits];
-                testfilename = sprintf('songs_%s%ss_%d%%%s.wav',...
-                    bird, sprintf('_%g', toi), round(100/(1+nonsinging_fraction)), ...
+                testfilename = sprintf('songs_%ss_%d%%%s.wav',...
+                    sprintf('_%g', toi(1)), round(100/(1+nonsinging_fraction)), ...
                     realignNetString);
             else
                 % Just the real songs
@@ -920,9 +903,9 @@ for run = first_run:nruns
                 hits = reshape(hits, [], 1);
                 songs = [songs hits];
                 
-                testfilename = sprintf('songs_%d_%s%ss%s.wav', ...
+                testfilename = sprintf('songs_%d_%ss%s.wav', ...
                     ntestsongs, ...
-                    bird, sprintf('_%g', toi), ...
+                    sprintf('_%g', toi(1)), ...
                     realignNetString);
                 
             end

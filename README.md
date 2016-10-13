@@ -15,13 +15,20 @@ We record the bird, and create a bunch of audio files that contain vocalisations
 * Jeff Markowitz's song clusterer, from https://github.com/jmarkow/zftftb
 
 * Nathan Perkins's song clusterer, from https://github.com/gardner-lab/find-audio
-  ** Download
-  ** add to your MATLAB path
-  ** learn how to use it
-     *** Create a song template, perhaps using `make_template`
-     *** Run `threshold_for_find_audio` to get a threshold
-     *** Run `process_directory(template, threshold)
-  ** This will spit out a `song.mat` file as required below.
+
+  1. Download with `git clone`
+  
+  2. Add to your MATLAB path
+  
+  3. Learn how to use it
+  
+    1. Create a song template, perhaps using `make_template`
+    
+    2. Run `threshold_for_find_audio` to get a threshold
+    
+    3. Run `process_directory(template, threshold)
+    
+  4. This will spit out a `song.mat` file as required below.
 
 #### Running:
 

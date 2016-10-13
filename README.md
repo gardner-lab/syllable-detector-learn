@@ -6,6 +6,23 @@ Install the following third-party packages from the MATLAB File Exchange, and ma
 * [_Significant Figures_ by Teck Por Lam.  File ID #10669](https://www.mathworks.com/matlabcentral/fileexchange/10669-significant-figures)
 * [_Generate maximally perceptually-distinct colors_ by Tim Holy.  File ID #29702](https://www.mathworks.com/matlabcentral/fileexchange/29702-generate-maximally-perceptually-distinct-colors)
 
+#### Preparation:
+
+## Gardner-Lab workflow:
+
+We record the bird, and create a bunch of audio files that contain vocalisations.  These can be clustered in a few ways.
+
+* Jeff Markowitz's song clusterer, from https://github.com/jmarkow/zftftb
+
+* Nathan Perkins's song clusterer, from https://github.com/gardner-lab/find-audio
+  ** Download
+  ** add to your MATLAB path
+  ** learn how to use it
+     *** Create a song template, perhaps using `make_template`
+     *** Run `threshold_for_find_audio` to get a threshold
+     *** Run `process_directory(template, threshold)
+  ** This will spit out a `song.mat` file as required below.
+
 #### Running:
 
 The entry point is `learn_detector.m`.  At the top thereof are a bunch of configuration parameters.  You can probably leave those untouched, but you should read through them to know what's available.  If you do want to touch them, do so by modifying `params.m`, below.

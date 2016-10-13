@@ -6,7 +6,8 @@ function [ mic_data, spectrograms, nsamples_per_song, nmatchingsongs, nsongsandn
     freq_range, ...
     time_window, ...
     nonsinging_fraction, ...
-    n_whitenoise)
+    n_whitenoise, ...
+    song_crop_region)
 
 load(data_file);
 
@@ -16,7 +17,7 @@ v = mean(var(song));
 
 mic_data = song;
 
-
+% Can we pull time-of-recording data out of the processing file?
 timestamps = zeros(1, nmatchingsongs);
 if exist('extract_filename', 'var')
     for i = 1:nmatchingsongs
@@ -46,6 +47,8 @@ if nonsinging_fraction > 0
     mic_data = [mic_data nonsong];
 end
 
+    
+
 %% Downsample the data to match target samplerate?
 if fs ~= target_samplerate
         disp(sprintf('Resampling data from %g Hz to %g Hz...', fs, target_samplerate));
@@ -63,6 +66,16 @@ end
 mic_data = [mic_data wgn(nsamples_per_song, n_whitenoise, v, 'linear')];
 
 [nsamples_per_song, nsongsandnonsongs] = size(mic_data);
+song_seconds = nsamples_per_song / target_samplerate;
+sample_times = 0:1/target_samplerate:song_seconds;
+
+if ~isempty(song_crop_region)
+    song_crop_i = find(sample_times >= song_crop_region(1)/1000 & sample_times <= song_crop_region(2)/1000);
+    mic_data = mic_data(song_crop_i,:);
+    % Repeat the above...
+    [nsamples_per_song, nsongsandnonsongs] = size(mic_data);
+end
+
 
 %disp('Bandpass-filtering the data...');
 %[B A] = butter(4, [0.03 0.9]);
@@ -83,6 +96,7 @@ window = hamming(fft_size);
 % Adjust "times" to reflect the time at which the information is actually available--i.e. the end,
 % rather than the middle, of the window:
 times = times - times(1) + fft_size/target_samplerate;
+
 [nfreqs, ntimes] = size(speck);
 speck = speck + eps;
 

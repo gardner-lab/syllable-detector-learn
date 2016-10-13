@@ -32,6 +32,7 @@ freq_range = [1000 8000];                        % Frequencies of the song to ex
 time_window_ms = 30;                             % How many seconds long is the time window?
 false_positive_cost = 1;                         % Cost of false positives is relative to that of false negatives.
 create_song_test_file = -1;                      % Big, and take some time to save.  1: always, 0: never, -1: only if nruns == 1
+song_crop_region = [-Inf Inf];                   % Crop the ends off the aligned song (milliseconds).  [] or [-Inf Inf] for no crop.  YOU MAY (OR MAY NOT?) WANT TO ADJUST TIMES OF INTEREST: times_of_interest_ms = [ 550 660 ] - song_crop_region(1)
 
 %use_previously_trained_network = '5syll_1ms.mat' % Rather than train a new network, use this one? NO ERROR CHECKING!!!!!
 %  Finally: where do the aligned song and nonsong data files live?  And which times do we care
@@ -66,7 +67,6 @@ end
 % Convert some things to SI
 times_of_interest_s = times_of_interest_ms / 1e3;
 time_window_s = time_window_ms / 1e3;
-
 
 
 if exist('use_previously_trained_network', 'var') & ~isempty(use_previously_trained_network)
@@ -112,8 +112,6 @@ end
 
 
 
-
-
 [ mic_data, spectrograms, nsamples_per_song, nmatchingsongs, nsongsandnonsongs, timestamps, nfreqs, freqs, ntimes, times, fft_time_shift_seconds, spectrogram_avg_img_songs_log, spectrogram_power_img, freq_range_ds, time_window_steps, layer0sz, nwindows_per_song, noverlap] ...
     = load_roboaggregate_file(data_file, ...
     fft_time_shift_seconds_target, ...
@@ -122,10 +120,12 @@ end
     freq_range, ...
     time_window_s, ...
     nonsinging_fraction, ...
-    n_whitenoise);
+    n_whitenoise, ...
+    song_crop_region);
 
 disp(sprintf('Got %d songs, %d songs-and-nonsongs including %d of synthetic white noise.', ...
     nmatchingsongs, nsongsandnonsongs, n_whitenoise));
+
 
 %% Draw the spectral image.  If no times_of_interest defined, this is what the user will use to choose some.
 figure(4);

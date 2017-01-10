@@ -18,7 +18,8 @@ files = files(sorted_index);
 nfiles = length(files);
 
 
-if isempty(template_filename) | ~exist(template_filename, 'file')
+if isempty(template_filename) ...
+        | ( ~exist(template_filename, 'file') & ~exist(strcat(template_filename, '.wav'), 'file'))
     make_template;
 end
 template = audioread(template_filename);

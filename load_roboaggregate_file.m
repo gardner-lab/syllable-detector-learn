@@ -1,4 +1,4 @@
-function [ mic_data, spectrograms, nsamples_per_song, nmatchingsongs, nsongsandnonsongs, timestamps, nfreqs, freqs, ntimes, times, fft_time_shift_seconds, spectrogram_avg_img, power_img, freq_range_ds, time_window_steps, layer0sz, nwindows_per_song, noverlap] ...
+function [ mic_data, spectrograms, nsamples_per_song, nmatchingsongs, nsongsandnonsongs, nonsinging_fraction, timestamps, nfreqs, freqs, ntimes, times, fft_time_shift_seconds, spectrogram_avg_img, power_img, freq_range_ds, time_window_steps, layer0sz, nwindows_per_song, noverlap] ...
     = load_roboaggregate_file(data_file, ...
     fft_time_shift_seconds_target, ...
     target_samplerate, ...
@@ -38,10 +38,11 @@ nnonmatches = size(nonsong, 2);
 
 if nonsinging_fraction > 0
     if nnonmatches < nonsinging_fraction * nmatchingsongs
-        warning('I had to lower nonsinging_fraction to %s.', sigfig(nnonmatches/nmatchingsongs - 0.01));
+        nonsinging_fraction = nnonmatches/nmatchingsongs;
+        warning('I had to lower nonsinging_fraction to %s.', sigfig(nonsinging_fraction));
     end
     if nnonmatches > nonsinging_fraction * nmatchingsongs
-        nonsong = nonsong(:, 1:nonsinging_fraction * nmatchingsongs);
+        nonsong = nonsong(:, 1:floor(nonsinging_fraction * nmatchingsongs));
     end
         
     mic_data = [mic_data nonsong];
@@ -68,6 +69,7 @@ mic_data = [mic_data wgn(nsamples_per_song, n_whitenoise, v, 'linear')];
 [nsamples_per_song, nsongsandnonsongs] = size(mic_data);
 song_seconds = nsamples_per_song / target_samplerate;
 sample_times = 0:1/target_samplerate:song_seconds;
+sample_times = sample_times(1:nsamples_per_song);
 
 if ~isempty(song_crop_region)
     song_crop_i = find(sample_times >= song_crop_region(1)/1000 & sample_times <= song_crop_region(2)/1000);

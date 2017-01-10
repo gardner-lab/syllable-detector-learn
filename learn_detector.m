@@ -5,12 +5,6 @@ clear;
 %%%%%%%%%%%%%%%% Configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% The two required files:
-data_file = 'song';                              % song.mat
-params_file = 'params';                          % params.m
-
-
-
 %% These are defaults.  If you want to change them, do so in params.m
 nhidden_per_output = 4;                          % How many hidden units per syllable?  2 works and trains fast.  4 works ~20% better...
 fft_time_shift_seconds_target = 0.0015;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train
@@ -18,7 +12,7 @@ use_jeff_realignment_train = false;              % Micro-realign at each detecti
 use_jeff_realignment_test = false;               % Micro-realign test data only at each detection point using Jeff's time-domain code.  Nah.
 use_nn_realignment_test = false;                 % Try using the trained network to realign test songs (reduce jitter?)
 confusion_all = false;                           % Use both training and test songs when computing the confusion matrix?
-nonsinging_fraction = 10;                        % Train on this proportion of nonsinging data (e.g. cage noise, calls)
+nonsinging_fraction = 2;                        % Train on this proportion of nonsinging data (e.g. cage noise, calls)
 n_whitenoise = 10;                               % Add this many white noise samples (FIXME simplistic method)
 ntrain_approx_max_matching_songs = 1000;         % Total dataset size is songs+nonsongs.  Only this+this*nonsinging_fraction will be used to train, leaving the rest for test
 testfile_include_nonsinging = false;             % Include nonsinging data in audio test file (no point if just used to measure timing)
@@ -29,10 +23,18 @@ do_not_randomise = false;                        % Use songs in original order?
 separate_network_for_each_syllable = true;       % Train a separate network for each time of interest?  Or one network with multiple outs?
 nruns = 1;                                       % Perform a few training runs and create beeswarm plot (paper figure 3 used 100)?
 freq_range = [1000 8000];                        % Frequencies of the song to examine
-time_window_ms = 30;                             % How many seconds long is the time window?
+time_window_ms = 50;                             % How many seconds long is the detection sliding-time-window?
 false_positive_cost = 1;                         % Cost of false positives is relative to that of false negatives.
 create_song_test_file = -1;                      % Big, and take some time to save.  1: always, 0: never, -1: only if nruns == 1
 song_crop_region = [-Inf Inf];                   % Crop the ends off the aligned song (milliseconds).  [] or [-Inf Inf] for no crop.  YOU MAY (OR MAY NOT?) WANT TO ADJUST TIMES OF INTEREST: times_of_interest_ms = [ 550 660 ] - song_crop_region(1)
+
+
+
+% The two required files:
+data_file = 'song';                              % song.mat
+params_file = 'params';                          % params.m
+
+
 
 %use_previously_trained_network = '5syll_1ms.mat' % Rather than train a new network, use this one? NO ERROR CHECKING!!!!!
 %  Finally: where do the aligned song and nonsong data files live?  And which times do we care
@@ -49,6 +51,7 @@ if exist('params_file', 'var') & exist(strcat(params_file, '.m'), 'file')
 end
 
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%% End Configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -63,10 +66,6 @@ if deltasong % Delta function is a special test case for measuring detector late
     mic_data = rand([20000, n])/100;
     mic_data(samples_of_interest + indices, :) = rand([length(indices), n])/100 + 1;
 end
-
-% Convert some things to SI
-times_of_interest_s = times_of_interest_ms / 1e3;
-time_window_s = time_window_ms / 1e3;
 
 
 if exist('use_previously_trained_network', 'var') & ~isempty(use_previously_trained_network)
@@ -110,9 +109,10 @@ else
     first_run = 1;
 end
 
+time_window_s = time_window_ms / 1e3;
 
 
-[ mic_data, spectrograms, nsamples_per_song, nmatchingsongs, nsongsandnonsongs, timestamps, nfreqs, freqs, ntimes, times, fft_time_shift_seconds, spectrogram_avg_img_songs_log, spectrogram_power_img, freq_range_ds, time_window_steps, layer0sz, nwindows_per_song, noverlap] ...
+[ mic_data, spectrograms, nsamples_per_song, nmatchingsongs, nsongsandnonsongs, nonsinging_fraction, timestamps, nfreqs, freqs, ntimes, times, fft_time_shift_seconds, spectrogram_avg_img_songs_log, spectrogram_power_img, freq_range_ds, time_window_steps, layer0sz, nwindows_per_song, noverlap] ...
     = load_roboaggregate_file(data_file, ...
     fft_time_shift_seconds_target, ...
     samplerate, ...
@@ -135,14 +135,18 @@ axis xy;
 xlabel('Time (ms)');
 ylabel('Frequency (kHz)');
 set(gca, 'YLim', [0 10]);
-if ~exist('times_of_interest_s', 'var') | isempty(times_of_interest_s)
+if ~exist('times_of_interest_ms', 'var') | isempty(times_of_interest_ms)
     error('No times of interest defined.  Please look at the spectrogram in Figure 4 and define one or more in ''%s'', with "times_of_interest_ms = [x y];" for detection at x and y milliseconds into the spectrogram.', strcat(pwd, filesep, params_file, '.m'));
 end
+
+times_of_interest_s = times_of_interest_ms / 1e3;
+
+
 
 %% Define training set
 % Hold some data out for final testing.  This includes both matching and non-matching IF THE SONGS
 % ARE IN RANDOM ORDER
-ntrainsongs = min(floor(nsongsandnonsongs*8/10), (1+nonsinging_fraction)*ntrain_approx_max_matching_songs);
+ntrainsongs = min(floor(nsongsandnonsongs*8/10), floor((1+nonsinging_fraction)*ntrain_approx_max_matching_songs));
 ntestsongs = nsongsandnonsongs - ntrainsongs;
 disp(sprintf('%d training songs-and-nonsongs.  %d remain for test.', ntrainsongs, ntestsongs));
 
@@ -163,7 +167,7 @@ end
 % Create informative names for the detection points:
 if ~exist('times_of_interest_names', 'var') | length(times_of_interest_names) < length(times_of_interest_separate)
     for i = 1:length(times_of_interest_ms)
-        times_of_interest_names{i} = sprintf('t^*_{%d}', round(1000*times_of_interest_ms(i)));
+        times_of_interest_names{i} = sprintf('t^*_{%d}', round(times_of_interest_ms(i)));
     end
 end
 
@@ -836,7 +840,7 @@ for run = first_run:nruns
         fft_time_shift = fft_size - noverlap;
         scaling = 'linear';
         filename = sprintf('detector_%ss_frame%gms_%dhid_%dtrain.mat', ...
-            sprintf('_%g', toi), 1000*fft_time_shift_seconds_target, net.layers{1}.dimensions, ntrainsongs);
+            sprintf('%g', toi), 1000*fft_time_shift_seconds_target, net.layers{1}.dimensions, ntrainsongs);
         fprintf('Saving as ''%s''...\n', filename);
         save(filename, ...
             'times_of_interest_s', 'toi', 'net', 'train_record', ...
@@ -880,7 +884,7 @@ for run = first_run:nruns
                 hits = reshape(hits, [], 1);
                 songs = [songs hits];
                 testfilename = sprintf('songs_%ss_%d%%%s.wav',...
-                    sprintf('_%g', toi(1)), round(100/(1+nonsinging_fraction)), ...
+                    sprintf('%g', toi(1)), round(100/(1+nonsinging_fraction)), ...
                     realignNetString);
             else
                 % Just the real songs

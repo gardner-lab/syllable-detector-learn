@@ -12,7 +12,7 @@ use_jeff_realignment_train = false;              % Micro-realign at each detecti
 use_jeff_realignment_test = false;               % Micro-realign test data only at each detection point using Jeff's time-domain code.  Nah.
 use_nn_realignment_test = false;                 % Try using the trained network to realign test songs (reduce jitter?)
 confusion_all = false;                           % Use both training and test songs when computing the confusion matrix?
-nonsinging_fraction = 2;                        % Train on this proportion of nonsinging data (e.g. cage noise, calls)
+nonsinging_fraction = 2;                         % Train on this proportion of nonsinging data (e.g. cage noise, calls)
 n_whitenoise = 10;                               % Add this many white noise samples (FIXME simplistic method)
 ntrain_approx_max_matching_songs = 1000;         % Total dataset size is songs+nonsongs.  Only this+this*nonsinging_fraction will be used to train, leaving the rest for test
 testfile_include_nonsinging = false;             % Include nonsinging data in audio test file (no point if just used to measure timing)
@@ -123,8 +123,8 @@ time_window_s = time_window_ms / 1e3;
     n_whitenoise, ...
     song_crop_region);
 
-disp(sprintf('Got %d songs, %d songs-and-nonsongs including %d of synthetic white noise.', ...
-    nmatchingsongs, nsongsandnonsongs, n_whitenoise));
+fprintf('Got %d songs, %d cage noise, %d songs-and-nonsongs including %d of synthetic white noise.\nNonsinging fraction is %s.\n', ...
+    nmatchingsongs, nsongsandnonsongs-nmatchingsongs-n_whitenoise, nsongsandnonsongs, n_whitenoise, sigfig(nonsinging_fraction, 4));
 
 
 %% Draw the spectral image.  If no times_of_interest defined, this is what the user will use to choose some.
@@ -185,8 +185,9 @@ training_times = [];
 loop_times = [];
 catch_up = false;
 
-
 tic;
+start_datetime = datenum(datetime('now'));
+start_time = tic;
 
 for run = first_run:nruns
     disp(sprintf('Starting run #%d...', run));
@@ -429,7 +430,13 @@ for run = first_run:nruns
             disp(sprintf('   ...training took %g minutes (mean %s m).  Rest-of-loop %g (mean %s m).', ...
                 toc/60, sigfig(mean(training_times)), ...
                 loop_times(end), sigfig(mean(loop_times(2:end)))));
+            %length(times_of_interest_ms) * (nruns-run) * mean(loop_times(2:end))
         end
+        elapsed_time = toc(start_time);
+        total_expected_time = elapsed_time * nruns / run;
+        expected_finish_time = start_datetime + (total_expected_time / (24*3600));
+        disp(sprintf('Expected finish time: %s', datestr(expected_finish_time, 'dddd HH:MM:SS')));
+        
         tic
         % Test on all the data:
         

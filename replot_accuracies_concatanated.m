@@ -7,10 +7,11 @@ figure(9);
 % jobs, since 10 syllables, 100 runs, 3000 training songs, convolutional networks, etc.,
 % can take a long time to complete.
 
-files = {'~/v/syllable-detector-learn/data/confusion_log_perf_4hid.txt', ...
+files = {...%'~/v/syllable-detector-learn/data/confusion_log_perf_4hid.txt', ...
+    '/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
     '/Volumes/Data/song/LNY46 0.28s or 0.195s/confusion_log_perf.txt', ...
     '/Volumes/Data/song/LNY42 0.38s/confusion_log_perf.txt', ...
-    '/Volumes/Data/song/LNY4RB 0.25s/confusion_log_perf_400nonsong.txt', ...
+    ...%'/Volumes/Data/song/LNY4RB 0.25s/confusion_log_perf_400nonsong.txt', ...
     '/Volumes/Data/song/LNY4RB 0.25s/confusion_log_perf.txt'};
 
 
@@ -57,9 +58,9 @@ scatter(confusion(:,1)+offsets, confusion(:,2)*100, sizes, colours(binj,:), 'fil
 xlabel('Test syllable');
 ylabel('True Positives %');
 title('Correct detections');
-if min(confusion(:,1)) ~= max(confusion(:,1))
-    set(gca, 'xlim', [min(confusion(:,1))-0.4 max(confusion(:,1))+0.4]);
-end
+%if min(confusion(:,1)) ~= max(confusion(:,1))
+%    set(gca, 'xlim', [min(confusion(:,1))-0.4 max(confusion(:,1))+0.4]);
+%end
 %set(gca, 'ylim', [97 100]);
 set(gca, 'xtick', ids, 'xticklabel', xtickl);
 
@@ -68,9 +69,9 @@ scatter(confusion(:,1)+offsets, confusion(:,3)*100, sizes, colours(binj,:), 'fil
 xlabel('Test syllable');
 ylabel('False Positives %');
 title('Incorrect detections');
-if min(sylly) ~= max(sylly)
-    set(gca, 'xlim', [min(sylly)-0.025 max(sylly)+0.025]);
-end
+%if length(ids) > 1
+%    set(gca, 'xlim', [min(ids)-0.5 max(ids)+0.5]);
+%end
 set(gca, 'xtick', ids, 'xticklabel', xtickl);
 %set(gca, 'ylim', [0 0.07]);
 sylly_counts

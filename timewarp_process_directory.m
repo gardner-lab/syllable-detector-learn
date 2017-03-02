@@ -56,7 +56,7 @@ for f = 1:nfiles
     if song_i >= minsong & nonsong_i >= minnonsong
         % Since the expensive step is find_audio and we have to run that for both song and non-song, there is no point in breaking
         % early if e.g. song_i >> minsong but nonsong_i < minnonsong.
-        disp(sprintf('Reached the requested amount of data. n_song = %d, n_nonsong = %d, %d%% of files processed.', ...
+        disp(sprintf('Reached the requested amount of data. %d songs, %d non-songs, %d%% of files processed.', ...
             song_i, nonsong_i, round(f*100/nfiles)));
         break;
     end

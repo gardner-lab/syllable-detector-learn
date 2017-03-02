@@ -1,14 +1,15 @@
-function [] = process_directory(template_filename, threshold);
+function [] = timewarp_process_directory(threshold, minsong, minnonsong, template_filename);
 % Apply Nathan's dynamic timewarp to all the wave files in a directory.  I assume they're called
 % "channel*.wav".  If the template file '0_template.wav' exists, it will be used, otherwise you will
 % be prompted to create it.
 %
-% template:       filename of a wave file containing one sample of the target song
-% threshold:      match threshold below which stuff is considered a matching song
+% threshold:           match threshold below which stuff is considered a matching song (default all files)
+% minsong, minnonsong: keep going until we exceed both of these numbers (default all files)
+% template_filename:   filename of a wave file containing one sample of the target song (default 0_template.wav)
 %
-% OUTPUT:         creates a training file, song.mat, as specified in README.md
+% OUTPUT:              creates a training file, song.mat, as specified in README.md
 %
-% DEPENDENCIES:   Nathan Perkins's find_audio, https://github.com/gardner-lab/find-audio
+% DEPENDENCIES:        Nathan Perkins's find_audio, https://github.com/gardner-lab/find-audio
 
 THRESHOLD_GAP = 1.5; % Nonsong must be above this factor of threshold.
 
@@ -16,6 +17,16 @@ files = dir('channel*.wav');
 [~, sorted_index] = sortrows({files.date}');
 files = files(sorted_index);
 nfiles = length(files);
+
+if ~exist('template_filename', 'var')
+    template_filename = '0_template.wav';
+end 
+if ~exist('minsong', 'var')
+    minsong = NaN;
+end
+if ~exist('minnonsong', 'var')
+    minnonsong = NaN;
+end
 
 
 if isempty(template_filename) ...
@@ -41,12 +52,21 @@ end
 
 for f = 1:nfiles
     waitbar(f/nfiles, wbar);
+    
+    if song_i >= minsong & nonsong_i >= minnonsong
+        % Since the expensive step is find_audio and we have to run that for both song and non-song, there is no point in breaking
+        % early if e.g. song_i >> minsong but nonsong_i < minnonsong.
+        disp(sprintf('Reached the requested amount of data. n_song = %d, n_nonsong = %d, %d%% of files processed.', ...
+            song_i, nonsong_i, round(f*100/nfiles)));
+        break;
+    end
+    
     [d, fs] = audioread(files(f).name);
     times = (1:length(d))/fs;
-    
     allsamples_i = [];
     [starts, ends, scores] = find_audio(d, template, fs, 'threshold_score', threshold*THRESHOLD_GAP);
     disp(sprintf('%s: %d suspicious regions; %d above threshold', files(f).name, length(starts), length(find(scores <= threshold))));
+    
     for n = 1:length(starts)
         % Toss them if they're not good enough
         if scores(n) > threshold

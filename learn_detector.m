@@ -1,3 +1,21 @@
+%    learn_detector: train a neural network to detect zebra finch syllables.
+%        Requires data in 'song.mat', and training configuration in 'params.m'.
+%        See README.md for instructions.
+%    Copyright (C) 2017  Ben Pearre
+
+%    This program is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+
+%    This program is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+
+%    You should have received a copy of the GNU General Public License
+%    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
 clear;
 
 
@@ -7,7 +25,7 @@ clear;
 
 %% These are defaults.  If you want to change them, do so in params.m
 nhidden_per_output = 4;                          % How many hidden units per syllable?  2 works and trains fast.  4 works ~20% better...
-fft_time_shift_seconds_target = 0.0015;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train
+fft_time_shift_seconds_target = 0.002;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train
 use_jeff_realignment_train = false;              % Micro-realign at each detection point using Jeff's time-domain code?  Don't do this.
 use_jeff_realignment_test = false;               % Micro-realign test data only at each detection point using Jeff's time-domain code.  Nah.
 use_nn_realignment_test = false;                 % Try using the trained network to realign test songs (reduce jitter?)
@@ -146,9 +164,9 @@ times_of_interest_s = times_of_interest_ms / 1e3;
 %% Define training set
 % Hold some data out for final testing.  This includes both matching and non-matching IF THE SONGS
 % ARE IN RANDOM ORDER
-ntrainsongs = min(floor(nsongsandnonsongs*8/10), floor((1+nonsinging_fraction)*ntrain_approx_max_matching_songs));
-ntestsongs = nsongsandnonsongs - ntrainsongs;
-disp(sprintf('%d training songs-and-nonsongs.  %d remain for test.', ntrainsongs, ntestsongs));
+ntrainsongsandnonsongs = min(floor(nsongsandnonsongs*8/10), floor((1+nonsinging_fraction)*ntrain_approx_max_matching_songs));
+ntestsongsandnonsongs = nsongsandnonsongs - ntrainsongsandnonsongs;
+disp(sprintf('%d training songs-and-nonsongs.  %d remain for test.', ntrainsongsandnonsongs, ntestsongsandnonsongs));
 
 % If we're using "fit", it'll produce useless warnings (some kludgey analysis I do later uses "fit",
 % but I want to disable them outside the loop).  Silence them!
@@ -241,8 +259,8 @@ for run = first_run:nruns
         
         
         
-        trainsongs = randomorder(1:ntrainsongs);
-        testsongs = randomorder(ntrainsongs+1:end);
+        trainsongs = randomorder(1:ntrainsongsandnonsongs);
+        testsongs = randomorder(ntrainsongsandnonsongs+1:end);
         
         if separate_network_for_each_syllable
             % "toi" will be times_of_interest_s(separate_syllable_counter)
@@ -351,7 +369,7 @@ for run = first_run:nruns
         drawnow;
         
         
-        disp(sprintf('Creating training set from %d songs...', ntrainsongs));
+        disp(sprintf('Creating training set from %d songs and nonsongs...', ntrainsongsandnonsongs));
         [nnsetX nnsetY] = create_training_set(spectrograms, ...
             tsteps_of_interest, ...
             target_offsets, ...
@@ -380,8 +398,8 @@ for run = first_run:nruns
         
         % These are contiguous blocks, since the spectrograms have already been
         % shuffled.
-        nnset_train = 1:(ntrainsongs * nwindows_per_song);
-        nnset_test = ntrainsongs * nwindows_per_song + 1 : size(nnsetX, 2);
+        nnset_train = 1:(ntrainsongsandnonsongs * nwindows_per_song);
+        nnset_test = ntrainsongsandnonsongs * nwindows_per_song + 1 : size(nnsetX, 2);
         
         % Create the network.  The parameter is the number of units in each hidden
         % layer.  [8] means one hidden layer with 8 units.  [] means a simple
@@ -435,12 +453,12 @@ for run = first_run:nruns
         elapsed_time = toc(start_time);
         total_expected_time = elapsed_time * nruns / run;
         expected_finish_time = start_datetime + (total_expected_time / (24*3600));
-        disp(sprintf('Expected finish time: %s', datestr(expected_finish_time, 'dddd HH:MM:SS')));
+        disp(sprintf('Expected finish time: %s-ish.', datestr(expected_finish_time, 'dddd HH:MM')));
         
         tic
         % Test on all the data:
         
-        % Why not test just on the non-training data?  Compute them all, and then only count ntestsongs for statistics (later)
+        % Why not test just on the non-training data?  Compute them all, and then only count ntestsongsandnonsongs for statistics (later)
         if use_pattern_net
             testout = net(nnsetX);
             testout = testout(1,:);
@@ -465,7 +483,7 @@ for run = first_run:nruns
         
         % Search for the optimal trigger thresholds using just the training set
         trigger_thresholds = optimise_network_output_unit_trigger_thresholds(...
-            testout(:,:,1:ntrainsongs), ...
+            testout(:,:,1:ntrainsongsandnonsongs), ...
             nwindows_per_song, ...
             false_positive_cost, ...
             toi, ...
@@ -473,7 +491,7 @@ for run = first_run:nruns
             MATCH_PLUSMINUS, ...
             fft_time_shift_seconds, ...
             time_window_steps, ...
-            songs_with_hits(1:ntrainsongs), ...
+            songs_with_hits(1:ntrainsongsandnonsongs), ...
             true);
         
         % Now that we've computed the thresholds using just the training set, print the confusion matrices
@@ -481,7 +499,7 @@ for run = first_run:nruns
         if confusion_all
             foo = 1:size(testout, 3);
         else
-            foo = ntrainsongs+1:size(testout, 3);
+            foo = ntrainsongsandnonsongs+1:size(testout, 3);
         end
         show_confusion(...
             testout(:, :, foo), ...
@@ -544,22 +562,22 @@ for run = first_run:nruns
                 %figure(6);
                 
                 % img is RGB.  Here I'm playing with colouring the image with triggers
-                img(1:ntrainsongs, :, 1) = img(1:ntrainsongs, :, 1) - trigger_img(1:ntrainsongs, :);
-                img(1:ntrainsongs, :, 2) = img(1:ntrainsongs, :, 2) + trigger_img(1:ntrainsongs, :);
-                img(1:ntrainsongs, :, 3) = img(1:ntrainsongs, :, 3) + trigger_img(1:ntrainsongs, :);
+                img(1:ntrainsongsandnonsongs, :, 1) = img(1:ntrainsongsandnonsongs, :, 1) - trigger_img(1:ntrainsongsandnonsongs, :);
+                img(1:ntrainsongsandnonsongs, :, 2) = img(1:ntrainsongsandnonsongs, :, 2) + trigger_img(1:ntrainsongsandnonsongs, :);
+                img(1:ntrainsongsandnonsongs, :, 3) = img(1:ntrainsongsandnonsongs, :, 3) + trigger_img(1:ntrainsongsandnonsongs, :);
                 % Different colour for testsongs
-                img(ntrainsongs+1:end, :, 1) = img(ntrainsongs+1:end, :, 1) + trigger_img(ntrainsongs+1:end, :);
-                img(ntrainsongs+1:end, :, 2) = img(ntrainsongs+1:end, :, 2) - trigger_img(ntrainsongs+1:end, :);
-                img(ntrainsongs+1:end, :, 3) = img(ntrainsongs+1:end, :, 3) - trigger_img(ntrainsongs+1:end, :);
+                img(ntrainsongsandnonsongs+1:end, :, 1) = img(ntrainsongsandnonsongs+1:end, :, 1) + trigger_img(ntrainsongsandnonsongs+1:end, :);
+                img(ntrainsongsandnonsongs+1:end, :, 2) = img(ntrainsongsandnonsongs+1:end, :, 2) - trigger_img(ntrainsongsandnonsongs+1:end, :);
+                img(ntrainsongsandnonsongs+1:end, :, 3) = img(ntrainsongsandnonsongs+1:end, :, 3) - trigger_img(ntrainsongsandnonsongs+1:end, :);
                 
                 if raster_colour_left_bar
                     % Colour the leftbar according to train and test:
-                    img(1:ntrainsongs, 1:time_window_steps, 3) = 1;
-                    img(1:ntrainsongs, 1:time_window_steps, 2) = 1;
-                    img(1:ntrainsongs, 1:time_window_steps, 1) = 0;
-                    img(ntrainsongs+1:end, 1:time_window_steps, 2) = 0;
-                    img(ntrainsongs+1:end, 1:time_window_steps, 1) = 1;
-                    img(ntrainsongs+1:end, 1:time_window_steps, 3) = 0;
+                    img(1:ntrainsongsandnonsongs, 1:time_window_steps, 3) = 1;
+                    img(1:ntrainsongsandnonsongs, 1:time_window_steps, 2) = 1;
+                    img(1:ntrainsongsandnonsongs, 1:time_window_steps, 1) = 0;
+                    img(ntrainsongsandnonsongs+1:end, 1:time_window_steps, 2) = 0;
+                    img(ntrainsongsandnonsongs+1:end, 1:time_window_steps, 1) = 1;
+                    img(ntrainsongsandnonsongs+1:end, 1:time_window_steps, 3) = 0;
                 end
                 
                 if SHOW_ONLY_TRUE_HITS
@@ -580,8 +598,8 @@ for run = first_run:nruns
                     imh = image([times(1) times(end)]*1000, [1 nsongsandnonsongs], img);
                 end
             else
-                leftbar(:, 1:ntrainsongs) = max(max(testout_i_squeezed))/2;
-                leftbar(:, ntrainsongs+1:end) = 3*max(max(testout_i_squeezed))/4;
+                leftbar(:, 1:ntrainsongsandnonsongs) = max(max(testout_i_squeezed))/2;
+                leftbar(:, ntrainsongsandnonsongs+1:end) = 3*max(max(testout_i_squeezed))/4;
                 testout_i_squeezed = [leftbar' testout_i_squeezed'];
                 imagesc([times(1) times(end)]*1000, [1 nsongsandnonsongs], testout_i_squeezed);
             end
@@ -594,9 +612,9 @@ for run = first_run:nruns
             
             if ~SORT_BY_ALIGNMENT
                 %% Show coloration by labeling the blocks of training and test songs
-                text(time_window_s/2*1000, ntrainsongs/2, 'train', ...
+                text(time_window_s/2*1000, ntrainsongsandnonsongs/2, 'train', ...
                     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Rotation', 90);
-                text(time_window_s/2*1000, ntrainsongs+ntestsongs/2, 'test', ...
+                text(time_window_s/2*1000, ntrainsongsandnonsongs+ntestsongsandnonsongs/2, 'test', ...
                     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Rotation', 90);
             elseif raster_colour_left_bar
                 %% Show colouration by labeling the largest contiguous blocks of training and test songs
@@ -847,7 +865,7 @@ for run = first_run:nruns
         fft_time_shift = fft_size - noverlap;
         scaling = 'linear';
         filename = sprintf('detector_%ss_frame%gms_%dhid_%dtrain.mat', ...
-            sprintf('%g', toi), 1000*fft_time_shift_seconds_target, net.layers{1}.dimensions, ntrainsongs);
+            sprintf('%g', toi), 1000*fft_time_shift_seconds_target, net.layers{1}.dimensions, ntrainsongsandnonsongs);
         fprintf('Saving as ''%s''...\n', filename);
         save(filename, ...
             'times_of_interest_s', 'toi', 'net', 'train_record', ...
@@ -857,7 +875,7 @@ for run = first_run:nruns
             'layer0', 'layer1', 'bias0', 'bias1', ...
             'mmmout_xmin', 'mmmout_ymin', 'mmmout_gain', 'mapstd_xmean', 'mapstd_xstd', ...
             'shotgun_sigma', ...
-            'ntrainsongs',  'scaling', '-v7');
+            'ntrainsongsandnonsongs',  'scaling', '-v7');
         %% Save sample data: audio on channel0, canonical hits for first syllable on channel1
         if use_nn_realignment_test
             realignNetString = 'realignNet';
@@ -898,24 +916,24 @@ for run = first_run:nruns
                 
                 % Re-permute just 128 of the positive songs with a new random order -- for oscilloscope
                 % 128-sample averages
-                ntestsongs = nmatchingsongs;
+                ntestsongsandnonsongs = nmatchingsongs;
                 newrand = randperm(nmatchingsongs);
-                newrand = newrand(1:ntestsongs);
+                newrand = newrand(1:ntestsongsandnonsongs);
                 
                 %songs = reshape(mic_data(:, 1:nmatchingsongs), [], 1); % Include all singing and non-singing
                 songs = reshape(mic_data(:, newrand), [], 1); % Just singing
                 songs_scale = max([max(songs) -min(songs)]);
                 songs = songs / songs_scale;
-                hits = zeros(nsamples_per_song, ntestsongs);
+                hits = zeros(nsamples_per_song, ntestsongsandnonsongs);
                 samples_of_interest = round(toi * samplerate);
-                for i = 1:ntestsongs
+                for i = 1:ntestsongsandnonsongs
                     hits(samples_of_interest(1) + round(sample_offsets_test(1, i)), i) = 1;
                 end
                 hits = reshape(hits, [], 1);
                 songs = [songs hits];
                 
                 testfilename = sprintf('songs_%d_%ss%s.wav', ...
-                    ntestsongs, ...
+                    ntestsongsandnonsongs, ...
                     sprintf('_%g', toi(1)), ...
                     realignNetString);
                 

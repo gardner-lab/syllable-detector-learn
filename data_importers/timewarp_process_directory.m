@@ -13,8 +13,7 @@ function [] = timewarp_process_directory(template_filename, threshold, minsong, 
 
 THRESHOLD_GAP = 1.1; % Nonsong must be above this factor of threshold.
 threshold_detect_segment_s = 120; % Build a snippet of audio around this long for auto-thresholding
-
-show_detection_points = true;
+show_detection_points = false;
 
 files = dir('channel*.wav');
 [~, sorted_index] = sortrows({files.name}');
@@ -89,13 +88,16 @@ else
     waitbar(0, wbar);
 end
 
+start_time = datetime('now');
+eta = 'Newtonmas';
+
 for f = 1:nfiles
     if ~isnan(minsong) & ~isnan(minnonsong)
-        waitbar(min(song_i/minsong, nonsong_i/minnonsong), wbar);
+        waitbar(min(song_i/minsong, nonsong_i/minnonsong), wbar, sprintf('Done around %s.', eta));
     else
-        waitbar(f/nfiles, wbar);
+        waitbar(f/nfiles, wbar, sprintf('Done around %s.', eta));
     end
-    
+        
     if song_i >= minsong & nonsong_i >= minnonsong
         % Since the expensive step is find_audio and we have to run that for both song and non-song, there is no point in breaking
         % early if e.g. song_i >> minsong but nonsong_i < minnonsong.
@@ -119,52 +121,58 @@ for f = 1:nfiles
         end
         sample_i = find(times >= starts(n) & times <= ends(n));
         allsamples_i = [allsamples_i sample_i]; % Keep track of these for later...
-        sample = d(sample_i);
-        sample_length = length(sample_i);
-        %% Stretch or compress the audio to make it the same length as the sample? THIS IS A TERRIBLE IDEA!
-        %sample_r = resample(sample, template_length, sample_length);
-        %% Instead, just pad or chop to fit. This allows the net to learn a few variants.
-        sample_under_length = template_length - sample_length;
-        if sample_under_length ~= 0 % positive or negative
-            begin_fill = ceil(sample_under_length / 2);
-            end_fill = floor(sample_under_length / 2);
-            sample_i = sample_i(1) - begin_fill : sample_i(end) + end_fill;
-        end
+        if song_i < minsong
+            sample_length = length(sample_i);
+            %% Stretch or compress the audio to make it the same length as the sample? THIS IS A TERRIBLE IDEA!
+            %sample_r = resample(sample, template_length, sample_length);
+            %% Instead, just pad or chop to fit. This allows the net to learn a few variants.
+            sample_under_length = template_length - sample_length;
+            if sample_under_length ~= 0 % positive or negative
+                begin_fill = ceil(sample_under_length / 2);
+                end_fill = floor(sample_under_length / 2);
+                sample_i = sample_i(1) - begin_fill : sample_i(end) + end_fill;
+            end
+            
+            % Preallocate some more memory, as required
+            song_i = song_i + 1;
+            if song_i > song_n
+                song_n = song_n * 2;
+                song(1, song_n) = 0;
+            end
         
-        % Preallocate some more memory, as required
-        song_i = song_i + 1;
-        if song_i > song_n
-            song_n = song_n * 2;
-            song(1, song_n) = 0;
+            song(:, song_i) = d(sample_i);
         end
-        
-        song(:, song_i) = sample_i;
     end
     
-    % end Show the detection points
-    
-    non_idx = setdiff(1:length(d), allsamples_i);
-    nonsongdata = d(non_idx);
-    non_starter = 1;
-    while non_starter + template_length - 1 < length(non_idx)
-        nonsong_i = nonsong_i + 1;
-        if nonsong_i > nonsong_n
-            nonsong_n = nonsong_n * 2;
-            nonsong(1, nonsong_n) = 0;
+    if nonsong_i <= minnonsong
+        non_idx = setdiff(1:length(d), allsamples_i);
+        nonsongdata = d(non_idx);
+        non_starter = 1;
+        while non_starter + template_length - 1 < length(non_idx)
+            nonsong_i = nonsong_i + 1;
+            if nonsong_i > nonsong_n
+                nonsong_n = nonsong_n * 2;
+                nonsong(1, nonsong_n) = 0;
+            end
+            
+            % Wrap the nonsong data into the appropriately sized chunks:
+            nonsong(:, nonsong_i) = nonsongdata(non_starter:non_starter+template_length-1);
+            non_starter = non_starter + template_length;
         end
-        
-        % Wrap the nonsong data into the appropriately sized chunks:
-        nonsong(:, nonsong_i) = nonsongdata(non_starter:non_starter+template_length-1);
-        non_starter = non_starter + template_length;
     end
-    
     
     % Show the detection points
     if show_detection_points
         plot_one_spectrogram(d, fs, threshold, scores, starts, ends);
     end
     
-
+    current_time = datetime('now');
+    eta_date = start_time + (current_time - start_time) / min(song_i/minsong, nonsong_i/minnonsong);
+    if strcmp(datetime(eta_date, 'Format', 'yyyyMMdd'), datetime(current_time, 'Format', 'yyyyMMdd'))
+        eta = datetime(eta_date, 'Format', 'eeee H:mm');
+    else
+        eta = datetime(eta_date, 'Format', 'H:mm');
+    end
 end
 close(wbar);
 wbar = [];

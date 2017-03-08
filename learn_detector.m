@@ -204,8 +204,10 @@ loop_times = [];
 catch_up = false;
 
 tic;
-start_datetime = datenum(datetime('now'));
 start_time = tic;
+start_time = datetime('now');
+eta = 'next weekend';
+
 
 for run = first_run:nruns
     disp(sprintf('Starting run #%d...', run));
@@ -450,10 +452,16 @@ for run = first_run:nruns
                 loop_times(end), sigfig(mean(loop_times(2:end)))));
             %length(times_of_interest_ms) * (nruns-run) * mean(loop_times(2:end))
         end
-        elapsed_time = toc(start_time);
-        total_expected_time = elapsed_time * nruns / run;
-        expected_finish_time = start_datetime + (total_expected_time / (24*3600));
-        disp(sprintf('Expected finish time: %s-ish.', datestr(expected_finish_time, 'dddd HH:MM')));
+        
+        current_time = datetime('now');
+        eta_date = start_time + (current_time - start_time) / (run / nruns);
+        if strcmp(datetime(eta_date, 'Format', 'yyyyMMdd'), datetime(current_time, 'Format', 'yyyyMMdd'))
+            eta = datetime(eta_date, 'Format', 'eeee H:mm');
+        else
+            eta = datetime(eta_date, 'Format', 'H:mm');
+        end
+
+        disp(sprintf('Expected finish time: %s.', eta));
         
         tic
         % Test on all the data:
@@ -780,7 +788,7 @@ for run = first_run:nruns
             end
             sylly_means
             colours = distinguishable_colors(length(sylly));
-            offsets = (rand(size(confusion(:,1))) - 0.5) * 2 * 0.02;
+            offsets = (rand(size(confusion(:,1))) - 0.5) * 2 * 0.33;
             if size(confusion, 2) >= 4 & false
                 sizes = (mapminmax(-confusion(:,4)')'+1.1)*8;
             else

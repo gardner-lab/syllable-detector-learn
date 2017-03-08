@@ -7,8 +7,6 @@
 %   ends:      points at which ostensible matches end (seconds)
 
 function plot_one_spectrogram(mic_data, fs, threshold, scores, starts, ends);
-
-    
     
     fft_size = 256;                                  % FFT size
     fft_time_shift_seconds_target = 0.004;
@@ -33,9 +31,8 @@ function plot_one_spectrogram(mic_data, fs, threshold, scores, starts, ends);
     speck = abs(speck);
     
     %% Draw the pretty full-res spectrogram and the targets
-    figure(412);
     imagesc([times(1) times(end)]*1000, [freqs(1) freqs(end)]/1000, log(speck));
-    set(gca, 'YLim', [0 10]);
+    set(gca, 'YLim', [0.4 10]);
     axis xy;
     xlabel('Time (ms)');
     ylabel('Frequency (kHz)');

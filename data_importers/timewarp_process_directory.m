@@ -11,13 +11,15 @@ function [] = timewarp_process_directory(template_filename, threshold, minsong, 
 %
 % DEPENDENCIES:        Nathan Perkins's find_audio, https://github.com/gardner-lab/find-audio
 
-THRESHOLD_GAP = 1.1; % Nonsong must be above this factor of threshold.
-threshold_detect_segment_s = 120; % Build a snippet of audio around this long for auto-thresholding
-show_detection_points = false;
+AUTO_THRESHOLD_CORRECTION = 1.05; % Bump up the autothreshold
+NONSONG_THRESHOLD_GAP = 1.2; % Nonsong must be above this factor of threshold.
+threshold_detect_segment_s = 200; % Build a snippet of audio around this long (seconds) for auto-thresholding
+show_detection_points = true;
+pause_for_check = false;
 
 files = dir('channel*.wav');
 [~, sorted_index] = sortrows({files.name}');
-sorted_index = randperm(length(files));
+%sorted_index = randperm(length(files));
 files = files(sorted_index);
 nfiles = length(files);
 
@@ -66,12 +68,14 @@ if ~exist('threshold', 'var') | isempty(threshold) | isnan(threshold) | threshol
             template_source = [template_source; a];
             segment_s = length(template_source) / template_source_fs;
         end
+        figure(412);
         plot_one_spectrogram(template_source, template_source_fs);
         yn = input('Does this spectrogram include a match?  Press y/n <enter>', 's');
     end
     
     
     threshold = threshold_for_find_audio('template', template, 'template_fs', template_fs, 'audio', template_source, 'audio_fs', template_source_fs);
+    threshold = threshold * AUTO_THRESHOLD_CORRECTION;
 end
 
 song_n = 100;
@@ -111,7 +115,7 @@ for f = 1:nfiles
     allsamples_i = [];
     % Find likely matches. The threshold is increased here so we get lots of possible positives, so that the negatives are
     % definitely very much non-song.
-    [starts, ends, scores] = find_audio(d, template, fs, 'threshold_score', threshold*THRESHOLD_GAP);
+    [starts, ends, scores] = find_audio(d, template, fs, 'threshold_score', threshold*NONSONG_THRESHOLD_GAP);
     disp(sprintf('%s: %d regions excluded from non-song, %d above threshold.', ...
         files(f).name, length(starts), length(find(scores <= threshold))));
     for n = 1:length(starts)
@@ -133,13 +137,17 @@ for f = 1:nfiles
                 sample_i = sample_i(1) - begin_fill : sample_i(end) + end_fill;
             end
             
+            % If the padding pushes us over the edge of the available data, discard and ignore.
+            if sample_i(1) < 1 | sample_i(end) > length(d)
+                continue;
+            end
             % Preallocate some more memory, as required
             song_i = song_i + 1;
             if song_i > song_n
                 song_n = song_n * 2;
                 song(1, song_n) = 0;
             end
-        
+            
             song(:, song_i) = d(sample_i);
         end
     end
@@ -172,6 +180,11 @@ for f = 1:nfiles
         eta = datetime(eta_date, 'Format', 'eeee H:mm');
     else
         eta = datetime(eta_date, 'Format', 'H:mm');
+    end
+    
+    if pause_for_check
+        disp('Press a key...');
+        pause;
     end
 end
 close(wbar);

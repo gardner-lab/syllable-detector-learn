@@ -29,7 +29,6 @@ fft_time_shift_seconds_target = 0.002;          % FFT frame rate (seconds).  Pap
 use_jeff_realignment_train = false;              % Micro-realign at each detection point using Jeff's time-domain code?  Don't do this.
 use_jeff_realignment_test = false;               % Micro-realign test data only at each detection point using Jeff's time-domain code.  Nah.
 use_nn_realignment_test = false;                 % Try using the trained network to realign test songs (reduce jitter?)
-confusion_all = false;                           % Use both training and test songs when computing the confusion matrix?
 nonsinging_fraction = 1;                         % Train on this proportion of nonsinging data (e.g. cage noise, calls)
 n_whitenoise = 10;                               % Add this many white noise samples (may help with white noise stimulation, but not as much as adding real samples!
 ntrain_approx_max_matching_songs = 1000;         % Total dataset size is songs+nonsongs.  Only this+this*nonsinging_fraction will be used to train, leaving the rest for test
@@ -113,15 +112,18 @@ if nruns > 1 & separate_network_for_each_syllable & exist('confusion_log_perf.tx
         % This file is created in show_confusion.m.
         confusion = load('confusion_log_perf.txt');
         [sylly bini binj] = unique(confusion(:,1));
+        % But we only care about the ones that times_of_interest_s includes:
+        sylly = intersect(sylly, times_of_interest_ms/1000);
         sylly_counts = [];
         for i = 1:length(sylly)
             sylly_counts(i) = length(find(confusion(:,1)==sylly(i)));
         end
-        if max(sylly_counts) == min(sylly_counts)
-            first_run = max(sylly_counts) + 1;
-        else
-            first_run = max(sylly_counts);
-        end
+        sylly_needed = [sylly * 1000 ; nruns - sylly_counts];
+        
+        disp(sprintf('Continuing where we left off. Progress so far (time_of_interest_ms ; # runs still required):'));
+        sylly_needed
+        
+        first_run = min(sylly_counts) + 1;
     end
 else
     first_run = 1;
@@ -205,7 +207,6 @@ loop_times = [];
 catch_up = false;
 
 tic;
-start_time = tic;
 start_time = datetime('now');
 eta = 'next weekend';
 
@@ -214,33 +215,22 @@ for run = first_run:nruns
     disp(sprintf('Starting run #%d...', run));
     
     
-    % This mess is to compensate for the fact that trainscg keeps crashing the programme,
-    % unbalancing the syllable counts.  When this imbalance is detected, do the underappreciated
-    % syllable, and then continue on our merry way.
-    if separate_network_for_each_syllable ...
-            & exist('sylly_counts', 'var') ...
-            & length(sylly_counts) == length(times_of_interest_s) ...
-            & max(sylly_counts) ~= min(sylly_counts)
-        disp(sprintf('Continuing on unfinished Run #%d...', run));
-        catch_up_syllables = max(sylly_counts) - sylly_counts;
-        times_of_interest_separate = [];
-        for i = length(times_of_interest_s):-1:1
-            for j = 1:catch_up_syllables(i)
-                times_of_interest_separate = [times_of_interest_separate times_of_interest_s(i)];
-            end
-        end
-        %[~, catch_up_on_which_syllable] = min(sylly_counts);
-        %times_of_interest_separate = times_of_interest(catch_up_on_which_syllable);
-        %separate_syllable_counter = catch_up_on_which_syllable - 1;
-        catch_up = true;
-    elseif catch_up
-        catch_up = false;
-        times_of_interest_separate = times_of_interest_s;
-    end
         
     separate_syllable_counter = 0;
     
     for thetime = times_of_interest_separate
+        
+        % When we've completed only a proper subset of times_of_interest within a run, do the run but skip the redundant
+        % times_of_interest.
+        if separate_network_for_each_syllable ...
+                & exist('sylly_counts', 'var')
+            n_completed_of_this_time_of_interest = sylly_counts(find(sylly == thetime));
+            disp(sprintf('Continuing on unfinished Run #%d...', run));
+            if run <= n_completed_of_this_time_of_interest 
+                disp(sprintf('We already finished timepoint %g for run %d. Continuing...', thetime, run));
+                continue;
+            end
+        end
         % thetime will be each of the times_of_interest, or else NaN, which will run once through the
         % loop.
         
@@ -255,16 +245,13 @@ for run = first_run:nruns
         
         if do_not_randomise
             randomorder(1:nsongs) = 1:nsongsandnonsongs;
-            disp('NOT permuting song order');
+            warning('NOT permuting song order');
         else
             % Because load_roboaggregate_file() makes sure that nonsinging_fraction is accurate, drawing randomly from
             % songs-and-nonsongs will give roughly the correct ratio of song to nonsong.
             randomorder = randperm(nsongsandnonsongs);
         end
-        
-        trainsongs = randomorder(1:ntrainsongsandnonsongs);
-        testsongs = randomorder(ntrainsongsandnonsongs+1:end);
-        
+                
         if separate_network_for_each_syllable
             % "toi" will be times_of_interest_s(separate_syllable_counter)
             toi = thetime;
@@ -280,7 +267,7 @@ for run = first_run:nruns
             tsteps_of_interest(i) = find(times >= toi(i), 1);
         end
         
-        disp(sprintf('********** Working on [ %s] ms **********', sprintf('%d ', round(toi*1000))));
+        disp(sprintf('********** Working on [ %s] ms **********', sprintf('%g ', toi)));
         
         
         %% Create the training set
@@ -367,12 +354,12 @@ for run = first_run:nruns
                 'EdgeColor', [1 0 0]);
         end
         set(gca, 'YLim', [0 10]);
-
-        
         drawnow;
         
         
-        disp(sprintf('Creating training set from %d songs and nonsongs...', ntrainsongsandnonsongs));
+        disp(sprintf('Creating training set from %d songs and nonsongs; test set from the remainder...', ntrainsongsandnonsongs));
+        % These are shuffled according to randomorder. Because nonsingin_fraction is used in the creation of the data set, any
+        % random set of these (e.g. 1:1000) will have the requested mix of song:nonsong.
         [nnsetX nnsetY] = create_training_set(spectrograms, ...
             tsteps_of_interest, ...
             target_offsets, ...
@@ -399,8 +386,8 @@ for run = first_run:nruns
         % shuffled: nnsetX, nnsetY, testout
         %   indices into shuffled arrays: nnset_train, nnset_test
         
-        % These are contiguous blocks, since the spectrograms have already been
-        % shuffled.
+        % We can make these contiguous blocks, since the spectrograms were
+        % shuffled when the training sets were built.
         nnset_train = 1:(ntrainsongsandnonsongs * nwindows_per_song);
         nnset_test = ntrainsongsandnonsongs * nwindows_per_song + 1 : size(nnsetX, 2);
         
@@ -454,20 +441,11 @@ for run = first_run:nruns
             %length(times_of_interest_ms) * (nruns-run) * mean(loop_times(2:end))
         end
         
-        current_time = datetime('now');
-        eta_date = start_time + (current_time - start_time) / (run / nruns);
-        if strcmp(datetime(eta_date, 'Format', 'yyyyMMdd'), datetime(current_time, 'Format', 'yyyyMMdd'))
-            eta = datetime(eta_date, 'Format', 'eeee H:mm');
-        else
-            eta = datetime(eta_date, 'Format', 'H:mm');
-        end
-
-        disp(sprintf('Expected finish time: %s.', eta));
         
         tic
         % Test on all the data:
         
-        % Why not test just on the non-training data?  Compute them all, and then only count ntestsongsandnonsongs for statistics (later)
+        % Test just on the non-training data, right?  Compute them all, and then only count ntestsongsandnonsongs for statistics (later)
         if use_pattern_net
             testout = net(nnsetX);
             testout = testout(1,:);
@@ -503,13 +481,9 @@ for run = first_run:nruns
             songs_with_hits(1:ntrainsongsandnonsongs), ...
             true);
         
-        % Now that we've computed the thresholds using just the training set, print the confusion matrices
+        % Now that we've computed the thresholds using just the training set, print the accuracy (as confusion matrices)
         % using just the holdout test set.
-        if confusion_all
-            foo = 1:size(testout, 3);
-        else
-            foo = ntrainsongsandnonsongs+1:size(testout, 3);
-        end
+        foo = ntrainsongsandnonsongs+1:size(testout, 3);
         show_confusion(...
             testout(:, :, foo), ...
             nwindows_per_song, ...
@@ -520,8 +494,7 @@ for run = first_run:nruns
             fft_time_shift_seconds, ...
             time_window_steps, ...
             songs_with_hits(foo), ...
-            trigger_thresholds, ...
-            train_record);
+            trigger_thresholds);
         
         
         %figure(32);
@@ -563,7 +536,7 @@ for run = first_run:nruns
                 [targets_with_offsets, target_offsets_net_tmp] = find(trigger_img);
                 target_offsets_net(i,targets_with_offsets) = target_offsets_net_tmp' - tsteps_of_interest(i) + 1;
                 sample_offsets_net(i,:) = target_offsets_net(i,:) * fft_time_shift_seconds * samplerate;
-                
+             
                 %figure(7);
                 %hist([target_offsets_2 ; target_offsets_net]', 50);
                 %hist([sample_offsets_test ; sample_offsets_net]', 50);
@@ -770,53 +743,57 @@ for run = first_run:nruns
         if nruns > 1 & separate_network_for_each_syllable
             %% Plot the figure of errors for all networks over all trials...
             figure(9);
-            % This file is created in show_confusion.m.  No effort is made to ensure that it doesn't
-            % contain values for different configurations, or even different-sized columns! So if
-            % you want to use it, best make sure you start by deleting the previous
-            % confusion_log_perf.txt.  Keep it in order to allow restart of partially completed
-            % jobs, since 10 syllables, 100 runs, 3000 training songs, convolutional networks, etc.,
-            % can take a long time to complete.
-            confusion = load('confusion_log_perf.txt');
-            %confusion = load('data/confusion_log_perf_4hid.txt');
-            [sylly bini binj] = unique(confusion(:,1));
-            xtickl = {};
-            sylly_means = [];
-            sylly_counts = [];
-            for i = 1:length(sylly)
-                xtickl{i} = sprintf('t^*_%d', i);
-                sylly_counts(i) = length(find(confusion(:,1)==sylly(i)));
-                sylly_means(i,:) = mean(confusion(find(confusion(:,1)==sylly(i)),2:3), 1);
-            end
-            sylly_means
-            colours = distinguishable_colors(length(sylly));
-            offsets = (rand(size(confusion(:,1))) - 0.5) * 2 * 0.33;
-            if size(confusion, 2) >= 4 & false
-                sizes = (mapminmax(-confusion(:,4)')'+1.1)*8;
+            if false
+                % This file is created in show_confusion.m.  No effort is made to ensure that it doesn't
+                % contain values for different configurations, or even different-sized columns! So if
+                % you want to use it, best make sure you start by deleting the previous
+                % confusion_log_perf.txt.  Keep it in order to allow restart of partially completed
+                % jobs, since 10 syllables, 100 runs, 3000 training songs, convolutional networks, etc.,
+                % can take a long time to complete.
+                confusion = load('confusion_log_perf.txt');
+                %confusion = load('data/confusion_log_perf_4hid.txt');
+                [sylly bini binj] = unique(confusion(:,1));
+                xtickl = {};
+                sylly_means = [];
+                sylly_counts = [];
+                for i = 1:length(sylly)
+                    xtickl{i} = sprintf('t^*_%d', i);
+                    sylly_counts(i) = length(find(confusion(:,1)==sylly(i)));
+                    sylly_means(i,:) = mean(confusion(find(confusion(:,1)==sylly(i)),2:3), 1);
+                end
+                sylly_means
+                colours = distinguishable_colors(length(sylly));
+                offsets = (rand(size(confusion(:,1))) - 0.5) * 2 * 0.33;
+                if size(confusion, 2) >= 4 & false
+                    sizes = (mapminmax(-confusion(:,4)')'+1.1)*8;
+                else
+                    sizes = 3;
+                end
+                subplot(1,2,1);
+                scatter(confusion(:,1)+offsets, confusion(:,2)*100, sizes, colours(binj,:), 'filled');
+                xlabel('Test syllable');
+                ylabel('True Positives %');
+                title('Correct detections');
+                if min(sylly) ~= max(sylly)
+                    set(gca, 'xlim', [min(sylly)-0.025 max(sylly)+0.025]);
+                end
+                %set(gca, 'ylim', [97 100]);
+                set(gca, 'xtick', sylly, 'xticklabel', xtickl);
+                
+                subplot(1,2,2);
+                scatter(confusion(:,1)+offsets, confusion(:,3)*100, sizes, colours(binj,:), 'filled');
+                xlabel('Test syllable');
+                ylabel('False Positives %');
+                title('Incorrect detections');
+                if min(sylly) ~= max(sylly)
+                    set(gca, 'xlim', [min(sylly)-0.025 max(sylly)+0.025]);
+                end
+                set(gca, 'xtick', sylly, 'xticklabel', xtickl);
+                %set(gca, 'ylim', [0 0.07]);
+                sylly_counts
             else
-                sizes = 3;
+                replot_accuracies_concatanated();
             end
-            subplot(1,2,1);
-            scatter(confusion(:,1)+offsets, confusion(:,2)*100, sizes, colours(binj,:), 'filled');
-            xlabel('Test syllable');
-            ylabel('True Positives %');
-            title('Correct detections');
-            if min(sylly) ~= max(sylly)
-                set(gca, 'xlim', [min(sylly)-0.025 max(sylly)+0.025]);
-            end
-            %set(gca, 'ylim', [97 100]);
-            set(gca, 'xtick', sylly, 'xticklabel', xtickl);
-            
-            subplot(1,2,2);
-            scatter(confusion(:,1)+offsets, confusion(:,3)*100, sizes, colours(binj,:), 'filled');
-            xlabel('Test syllable');
-            ylabel('False Positives %');
-            title('Incorrect detections');
-            if min(sylly) ~= max(sylly)
-                set(gca, 'xlim', [min(sylly)-0.025 max(sylly)+0.025]);
-            end
-            set(gca, 'xtick', sylly, 'xticklabel', xtickl);
-            %set(gca, 'ylim', [0 0.07]);
-            sylly_counts
         end
         
         
@@ -950,6 +927,17 @@ for run = first_run:nruns
             
             audiowrite(testfilename, songs, round(samplerate));
         end
+        
+        
+        current_time = datetime('now');
+        eta_date = start_time + (current_time - start_time) / ((run - first_run + 1) / (nruns - first_run + 1));
+        if strcmp(datestr(eta_date, 'yyyymmdd'), datestr(current_time, 'yyyymmdd'))
+            eta = datestr(eta_date, 15);
+        else
+            eta = datestr(eta_date, 'dddd yyyy-mm-dd HH:MM');
+        end
+        disp(sprintf('Expected finish time: %s.', eta));
+
     end
 end
 

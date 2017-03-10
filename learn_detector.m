@@ -154,7 +154,8 @@ xlabel('Time (ms)');
 ylabel('Frequency (kHz)');
 set(gca, 'YLim', [0 10]);
 if ~exist('times_of_interest_ms', 'var') | isempty(times_of_interest_ms)
-    error('No times of interest defined.  Please look at the spectrogram in Figure 4 and define one or more in ''%s'', with "times_of_interest_ms = [x y];" for detection at x and y milliseconds into the spectrogram.', strcat(pwd, filesep, params_file, '.m'));
+    disp(sprintf('No times of interest defined.  Please look at the spectrogram in Figure 4 and define one or more in ''%s'', with "times_of_interest_ms = [x y];" for detection at x and y milliseconds into the spectrogram.', strcat(pwd, filesep, params_file, '.m')));
+    return; 
 end
 
 times_of_interest_s = times_of_interest_ms / 1e3;
@@ -256,10 +257,10 @@ for run = first_run:nruns
             randomorder(1:nsongs) = 1:nsongsandnonsongs;
             disp('NOT permuting song order');
         else
+            % Because load_roboaggregate_file() makes sure that nonsinging_fraction is accurate, drawing randomly from
+            % songs-and-nonsongs will give roughly the correct ratio of song to nonsong.
             randomorder = randperm(nsongsandnonsongs);
         end
-        
-        
         
         trainsongs = randomorder(1:ntrainsongsandnonsongs);
         testsongs = randomorder(ntrainsongsandnonsongs+1:end);

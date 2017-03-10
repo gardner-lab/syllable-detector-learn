@@ -12,7 +12,7 @@ function [] = timewarp_process_directory(template_filename, threshold, minsong, 
 % DEPENDENCIES:        Nathan Perkins's find_audio, https://github.com/gardner-lab/find-audio
 
 AUTO_THRESHOLD_CORRECTION = 1.05; % Bump up the autothreshold
-NONSONG_THRESHOLD_GAP = 1.2; % Nonsong must be above this factor of threshold.
+NONSONG_THRESHOLD_GAP = 1.1; % Nonsong must be above this factor of threshold.
 threshold_detect_segment_s = 200; % Build a snippet of audio around this long (seconds) for auto-thresholding
 show_detection_points = true;
 pause_for_check = false;
@@ -30,7 +30,11 @@ if ~exist('minsong', 'var')
     minsong = NaN;
 end
 if ~exist('minnonsong', 'var')
-    minnonsong = NaN;
+    if ~isnan(minsong)
+        minnonsong = minsong;
+    else
+        minnonsong = NaN;
+    end
 end
 
 global wbar;
@@ -119,13 +123,12 @@ for f = 1:nfiles
     disp(sprintf('%s: %d regions excluded from non-song, %d above threshold.', ...
         files(f).name, length(starts), length(find(scores <= threshold))));
     for n = 1:length(starts)
-        % Toss them if they're not good enough
-        if scores(n) > threshold
-            continue;
-        end
+        % Toss them if they're not good enough.
+        % BUT if they're in the grey zone, add them to allsamples_i.
         sample_i = find(times >= starts(n) & times <= ends(n));
         allsamples_i = [allsamples_i sample_i]; % Keep track of these for later...
-        if song_i < minsong
+
+        if scores(n) <= threshold & song_i < minsong
             sample_length = length(sample_i);
             %% Stretch or compress the audio to make it the same length as the sample? THIS IS A TERRIBLE IDEA!
             %sample_r = resample(sample, template_length, sample_length);

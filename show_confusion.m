@@ -8,18 +8,11 @@ function [ ] = show_confusion(...
         timestep, ...
         time_window_steps, ...
         songs_with_hits, ...
-        trigger_thresholds, ...
-        train_record);
+        trigger_thresholds);
 
-% Search for optimal thresholds given false-positive vs
-% false-negagive weights (the latter := 1).
-
-% The onset has to be no more than ACTIVE_TIME_BEFORE before the baseline
-% training signal, and the 
 
 % A positive that happens within ACTIVE_TIME of the event does not count as a
 % false positive.  This is in seconds, and allows for some jitter.
-
 ACTIVE_TIMESTEPS_BEFORE = floor(MATCH_PLUSMINUS / timestep);
 ACTIVE_TIMESTEPS_AFTER = floor(MATCH_PLUSMINUS / timestep);
 
@@ -27,11 +20,6 @@ ACTIVE_TIMESTEPS_AFTER = floor(MATCH_PLUSMINUS / timestep);
 % Responses have been trimmed to start at the start of recognition given
 % the time window.  So we need to align those:
 tstep_of_interest_shifted = tstep_of_interest - time_window_steps + 1;
-
-%figure(7);
-%nsubfigs = size(testout, 1);
-
-ntestpts = 1000;
 
 for i = 1:length(tstep_of_interest)
     responses = squeeze(testout(i, :, :))';
@@ -47,16 +35,13 @@ for i = 1:length(tstep_of_interest)
     
     % Find optimal threshold on the interval [0.001 1]
     % optimal_thresholds = fminbnd(f, 0.001, 1);
-    %% Actually, fminbnd is useless at jumping out of local minima, but brute-forcing the search is quick.
-    best = Inf;
-    testpts = linspace(0, 1, ntestpts);
-    trueposrate = zeros(1, length(tstep_of_interest));
-    falseposrate = zeros(1, length(tstep_of_interest));
-    [ outval trueposrate falseposrate ] = f(trigger_thresholds(i));
-    
-    tpfp = [times_of_interest trueposrate falseposrate train_record.best_tperf];
+    % fminbnd is useless at jumping out of local minima (and this will have large flat regions), but brute-forcing the search is quick.
+    [ ~, trueposrate, falseposrate ] = f(trigger_thresholds(i));
+
+    tpfp = [times_of_interest trueposrate falseposrate 0];
 
     if true
+        % ASCII art
         fprintf('At %d ms:        True positive    negative\n', times_of_interest(i) * 1000);
         fprintf('     output pos      %.5f%%     %s%%\n', trueposrate*100, sigfig(falseposrate*100));
         fprintf('            neg       %s%%       %.5f%%\n', sigfig((1-trueposrate)*100), (1-falseposrate)*100);
@@ -66,6 +51,7 @@ for i = 1:length(tstep_of_interest)
             save('confusion_log_perf.txt', 'tpfp', '-ascii');
         end
     else
+        % LaTeX table
         fprintf('\\vspace{8pt}\\par\\noindent\n\\begin{tabular}{r|cc}\n  {\\bf At %d ms} & \\multicolumn{2}{c}{True} \\\\ \n  & pos & neg \\\\ \n  \\hline  Detected pos & %.5f\\%% & %.5f\\%%\\\\ \n  neg & %.5f\\%% & %.5f\\%%\\\\ \n\\end{tabular}\n', ...
             times_of_interest(i) * 1000, trueposrate*100, falseposrate*100, (1-trueposrate)*100, (1-falseposrate)*100);
     end

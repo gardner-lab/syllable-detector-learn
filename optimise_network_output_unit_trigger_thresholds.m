@@ -10,13 +10,11 @@ function [ optimal_thresholds optimal_thresholds_c ] = optimise_network_output_u
         songs_with_hits, ...
         midpoint);
 
-global Y_NEGATIVE;
-
 % Search for optimal thresholds given false-positive vs
 % false-negagive weights (the latter := 1).
 
 % The onset has to be no more than ACTIVE_TIME_BEFORE before the baseline
-% training signal, and the 
+% training signal. 
 
 % A positive that happens within ACTIVE_TIME of the event does not count as a
 % false positive.  This is in seconds, and allows for some jitter.

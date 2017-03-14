@@ -1,60 +1,106 @@
 %% Plot the figure of errors for all networks over all trials...
-function [] = replot_accuracies_concatanated()
+function [] = replot_accuracies_concatanated(files, tex)
     
-    % This file is created in show_confusion.m.  No effort is made to ensure that it doesn't
-    % contain values for different configurations, or even different-sized columns! So if
-    % you want to use it, best make sure you start by deleting the previous
-    % confusion_log_perf.txt.  Keep it in order to allow restart of partially completed
-    % jobs, since 10 syllables, 100 runs, 3000 training songs, convolutional networks, etc.,
-    % can take a long time to complete.
+    % The input file is created in show_confusion.m.  No effort is made to
+    % ensure that it doesn't contain values for different configurations,
+    % or even different-sized columns! So if you want to use it, best make
+    % sure you start by deleting the previous confusion_log_perf.txt.  Keep
+    % it in order to allow restart of partially completed jobs, since 10
+    % syllables, 100 runs, 3000 training songs, convolutional networks,
+    % etc., can take a long time to complete.
     
-    files = {'/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
-        '/Volumes/Data/song/lny64/confusion_log_perf_published.txt', ...
-        '/Volumes/Data/song/LNY46 0.28s or 0.195s/confusion_log_perf.txt', ...
-        '/Volumes/Data/song/LNY42 0.38s/confusion_log_perf.txt', ...
-        '/Volumes/Data/song/LNY4RB 0.25s/confusion_log_perf.txt', ...
-        '/Volumes/Data/song/lr28/all/confusion_log_perf.txt', ...
-        '/Volumes/Data/song/lr12/all/confusion_log_perf.txt', ...
-        '/Volumes/Data/song/lr13/all/confusion_log_perf.txt', ...
-        '/Volumes/Data/song/lr77/all/confusion_log_perf.txt'
-        };
+    if ~exist('files', 'var') | isempty(files)
+        files = {'/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lny64/confusion_log_perf_published.txt', ...
+            '/Volumes/Data/song/LNY46 0.28s or 0.195s/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/LNY42 0.38s/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/LNY4RB 0.25s/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr28/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr12/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr13/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr77/all/confusion_log_perf.txt'
+            };
+    elseif ischar(files)
+        foo = files;
+        files = {foo};
+    elseif iscell(files)
+        % That's cool; do naught
+    else
+        error('The input parameter should be a confusion_log filename\nor a cell array thereof.');
+    end
     
+    if ~exist('tex', 'var')
+        tex = false;
+    end
     
     xtickl = {};
-    sylly_means = [];
-    sylly_counts = [];
-    confusion = [];
+    xtime = {};
+    xtabl = {};
+    xfil = {};
     binj = [];
+    confusion = [];
     
     n_so_far = 0;
     
-    try       
-        for f = 1:length(files)
+    for f = 1:length(files)
+        try
             confusions{f} = load(files{f});
-            
-            % First, we have to do all this in order to count the unique syllables:
-            [sylly bini binj_plus] = unique(confusions{f}(:,1));
-            binj = [binj; binj_plus + n_so_far];
-            
-            for i = n_so_far+[1:length(sylly)]
-                % Make the first column just a unique identifier, rather than the time target:
-                id = 10+i;
-                ids(i) = id;
-                confusions{f}(find(confusions{f}(:,1) == sylly(i-n_so_far)), 1) = id;
-                
-                xtickl{i} = sprintf('%c t^*_%d', 'A'+f-1, i-n_so_far);
-                sylly_counts(i) = length(find(confusions{f}(:,1)==id));
-                sylly_means(i,:) = mean(confusions{f}(find(confusions{f}(:,1)==id),2:3), 1);
-            end
-            
-            n_so_far = n_so_far + length(sylly);
-            confusion = [confusion ; confusions{f}];
+        catch ME
+            warning('Error loading ''%s''. Continuing...', files{f});
+            continue;
         end
-    catch ME
-        return;
+        
+        % First, we have to do all this in order to count the unique syllables:
+        [sylly bini binj_plus] = unique(confusions{f}(:,1));
+        binj = [binj; binj_plus + n_so_far];
+        
+        for i = n_so_far+[1:length(sylly)]
+            % Make the first column just a unique identifier, rather than the time target:
+            id = 10+i;
+            ids(i) = id;
+            confusions{f}(find(confusions{f}(:,1) == sylly(i-n_so_far)), 1) = id;
+            
+            xtickl{i} = sprintf('%c t^*_%d', 'A'+f-1, i-n_so_far);
+            xtime{i} = sprintf('%g', 1000*sylly(i-n_so_far));
+            if i - n_so_far == 1
+                xtabl{i} = sprintf('%c', 'A'+f-1);
+                xfil{i} = files{f};
+            else
+                xtabl{i} = ' ';
+                xfil{i} = '';
+            end
+            sylly_counts(i) = length(find(confusions{f}(:,1)==id));
+            sylly_means(i,:) = mean(confusions{f}(find(confusions{f}(:,1)==id),2:3), 1);
+        end
+        
+        n_so_far = n_so_far + length(sylly);
+        confusion = [confusion ; confusions{f}];
     end
     
-    sylly_means_percent = sylly_means * 100
+    performance = sprintf('Bird\tTime\tTrue Pos %%\tFalse Pos %%');
+    for i = 1:length(xtickl)
+        if tex
+            if i == length(xtickl)
+                lineterm = '';
+            else
+                lineterm = '\\';
+            end
+            str = sprintf('%s & \t%s & \t%s & \t%s %s %% %s', xtabl{i}, xtime{i}, ...
+                sigfig(sylly_means(i,1)*100, 4), ...
+                sigfig(sylly_means(i,2)*100, 4, 'pad'), ...
+                lineterm, ...
+                xfil{i});
+            performance(i+1, 1:length(str)) = str;
+        else
+            str = sprintf('%s\t%s\t%s\t\t%s\t%s', xtabl{i}, xtime{i}, ...
+                sigfig(sylly_means(i,1)*100, 4), ...
+                sigfig(sylly_means(i,2)*100, 4, 'pad'), ...
+                xfil{i});
+            performance(i+1, 1:length(str)) = str;
+        end
+    end
+    performance
+    
     colours = distinguishable_colors(length(xtickl));
     offsets = (rand(size(confusion(:,1))) - 0.5) * 2 * 0.33;
     if size(confusion, 2) >= 4 & false

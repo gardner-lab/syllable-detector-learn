@@ -9,12 +9,14 @@ function [] = replot_accuracies_concatanated()
     % can take a long time to complete.
     
     files = {'/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
+        '/Volumes/Data/song/lny64/confusion_log_perf_published.txt', ...
         '/Volumes/Data/song/LNY46 0.28s or 0.195s/confusion_log_perf.txt', ...
         '/Volumes/Data/song/LNY42 0.38s/confusion_log_perf.txt', ...
         '/Volumes/Data/song/LNY4RB 0.25s/confusion_log_perf.txt', ...
         '/Volumes/Data/song/lr28/all/confusion_log_perf.txt', ...
         '/Volumes/Data/song/lr12/all/confusion_log_perf.txt', ...
-        '/Volumes/Data/song/lr13/all/confusion_log_perf.txt' ...
+        '/Volumes/Data/song/lr13/all/confusion_log_perf.txt', ...
+        '/Volumes/Data/song/lr77/all/confusion_log_perf.txt'
         };
     
     
@@ -26,26 +28,30 @@ function [] = replot_accuracies_concatanated()
     
     n_so_far = 0;
     
-    for f = 1:length(files)
-        confusions{f} = load(files{f});
-        
-        % First, we have to do all this in order to count the unique syllables:
-        [sylly bini binj_plus] = unique(confusions{f}(:,1));
-        binj = [binj; binj_plus + n_so_far];
-        
-        for i = n_so_far+[1:length(sylly)]
-            % Make the first column just a unique identifier, rather than the time target:
-            id = 10+i;
-            ids(i) = id;
-            confusions{f}(find(confusions{f}(:,1) == sylly(i-n_so_far)), 1) = id;
+    try       
+        for f = 1:length(files)
+            confusions{f} = load(files{f});
             
-            xtickl{i} = sprintf('%c t^*_%d', 'A'+f-1, i-n_so_far);
-            sylly_counts(i) = length(find(confusions{f}(:,1)==id));
-            sylly_means(i,:) = mean(confusions{f}(find(confusions{f}(:,1)==id),2:3), 1);
+            % First, we have to do all this in order to count the unique syllables:
+            [sylly bini binj_plus] = unique(confusions{f}(:,1));
+            binj = [binj; binj_plus + n_so_far];
+            
+            for i = n_so_far+[1:length(sylly)]
+                % Make the first column just a unique identifier, rather than the time target:
+                id = 10+i;
+                ids(i) = id;
+                confusions{f}(find(confusions{f}(:,1) == sylly(i-n_so_far)), 1) = id;
+                
+                xtickl{i} = sprintf('%c t^*_%d', 'A'+f-1, i-n_so_far);
+                sylly_counts(i) = length(find(confusions{f}(:,1)==id));
+                sylly_means(i,:) = mean(confusions{f}(find(confusions{f}(:,1)==id),2:3), 1);
+            end
+            
+            n_so_far = n_so_far + length(sylly);
+            confusion = [confusion ; confusions{f}];
         end
-        
-        n_so_far = n_so_far + length(sylly);
-        confusion = [confusion ; confusions{f}];
+    catch ME
+        return;
     end
     
     sylly_means_percent = sylly_means * 100

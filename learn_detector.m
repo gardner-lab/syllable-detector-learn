@@ -113,15 +113,15 @@ if nruns > 1 & separate_network_for_each_syllable & exist('confusion_log_perf.tx
         confusion = load('confusion_log_perf.txt');
         [sylly bini binj] = unique(confusion(:,1));
         % But we only care about the ones that times_of_interest_s includes:
-        sylly = intersect(sylly, times_of_interest_ms/1000);
+        sylly = unique([intersect(sylly', times_of_interest_ms/1000) times_of_interest_ms/1000]);
         sylly_counts = [];
         for i = 1:length(sylly)
             sylly_counts(i) = length(find(confusion(:,1)==sylly(i)));
         end
-        sylly_needed = [sylly * 1000 ; nruns - sylly_counts];
+        syllables_still_needed = [sylly * 1000 ; nruns - sylly_counts];
         
         disp(sprintf('Continuing where we left off. Progress so far (time_of_interest_ms ; # runs still required):'));
-        sylly_needed
+        syllables_still_needed
         
         first_run = min(sylly_counts) + 1;
     end
@@ -225,7 +225,6 @@ for run = first_run:nruns
         if separate_network_for_each_syllable ...
                 & exist('sylly_counts', 'var')
             n_completed_of_this_time_of_interest = sylly_counts(find(sylly == thetime));
-            disp(sprintf('Continuing on unfinished Run #%d...', run));
             if run <= n_completed_of_this_time_of_interest 
                 disp(sprintf('We already finished timepoint %g for run %d. Continuing...', thetime, run));
                 continue;

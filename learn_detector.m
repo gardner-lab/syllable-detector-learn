@@ -26,7 +26,7 @@ clear;
 %% These are defaults.  If you want to change them, do so in params.m
 times_of_interest_ms = NaN;                      % Milliseconds at which to trigger. Exists here just to define it as valid.
 nhidden_per_output = 4;                          % How many hidden units per syllable?  2 works and trains fast.  4 works ~20% better...
-fft_time_shift_seconds_target = 0.002;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train
+fft_time_shift_seconds_target = 0.0015;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train
 use_jeff_realignment_train = false;              % Micro-realign at each detection point using Jeff's time-domain code?  Don't do this.
 use_jeff_realignment_test = false;               % Micro-realign test data only at each detection point using Jeff's time-domain code.  Nah.
 use_nn_realignment_test = false;                 % Try using the trained network to realign test songs (reduce jitter?)
@@ -101,7 +101,7 @@ rng('shuffle');
 
 % If confusion_log_perf.txt exists, there is the risk that something important (parameters, code...)
 % has changed since that file was last added to.  Ask the user.
-if nruns > 1 & separate_network_for_each_syllable & exist('confusion_log_perf.txt', 'file')
+if nruns > 1 & separate_network_for_each_syllable & exist('./confusion_log_perf.txt', 'file')
     response = questdlg('A multi-run logfile exists.  Keep adding to it?', ...
         'Keep logfile?', ...
         'yes', ...
@@ -270,7 +270,7 @@ for run = first_run:nruns
             tsteps_of_interest(i) = find(times >= toi(i), 1);
         end
         
-        disp(sprintf('********** Working on [ %s] ms **********', sprintf('%g ', toi)));
+        disp(sprintf('********** Working on [ %s] ms **********', sprintf('%g ', toi * 1000)));
         
         
         %% Create the training set
@@ -747,8 +747,10 @@ for run = first_run:nruns
             %% Plot the figure of errors for all networks over all trials...
             figure(9);
             if false
+                % Plot just the one we're working on:
                 replot_accuracies_concatanated('confusion_log_perf.txt');
             else
+                % Plot them all!
                 replot_accuracies_concatanated();
             end
         end

@@ -24,6 +24,7 @@ clear;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% These are defaults.  If you want to change them, do so in params.m
+times_of_interest_ms = NaN;                      % Milliseconds at which to trigger. Exists here just to define it as valid.
 nhidden_per_output = 4;                          % How many hidden units per syllable?  2 works and trains fast.  4 works ~20% better...
 fft_time_shift_seconds_target = 0.002;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train
 use_jeff_realignment_train = false;              % Micro-realign at each detection point using Jeff's time-domain code?  Don't do this.
@@ -57,16 +58,19 @@ params_file = 'params';                          % params.m
 %  Finally: where do the aligned song and nonsong data files live?  And which times do we care
 %  about?
 
-% Load the user configuration.  This is done by running the params file as a .m file, which adds
-% variables to the current workspace:
-if exist('params_file', 'var') & exist(strcat(params_file, '.m'), 'file')
-    disp(sprintf('********** Configuration file %s: *************', ...
-        strcat(pwd, filesep, params_file, '.m')));
-    type(params_file);
-    eval(params_file);
-    disp('**************************************************************************');
-end
+% Load the user configuration.  This is done by a function that runs the params file as a .m file and adds all the discovered
+% parameters to the struct 'p'. This can then be checked against variables that actually exist.
+user_parameters = load_params(params_file)
 
+pf = fieldnames(user_parameters);
+for i = 1:length(pf)
+    if exist(pf{i}, 'var')
+        eval(sprintf('%s = user_parameters.%s;', pf{i}, pf{i}));
+    else
+        error('Parameter name ''%s'' is invalid.', pf{i});
+    end
+end
+disp('**************************************************************************');
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -743,53 +747,7 @@ for run = first_run:nruns
             %% Plot the figure of errors for all networks over all trials...
             figure(9);
             if false
-                % This file is created in show_confusion.m.  No effort is made to ensure that it doesn't
-                % contain values for different configurations, or even different-sized columns! So if
-                % you want to use it, best make sure you start by deleting the previous
-                % confusion_log_perf.txt.  Keep it in order to allow restart of partially completed
-                % jobs, since 10 syllables, 100 runs, 3000 training songs, convolutional networks, etc.,
-                % can take a long time to complete.
-                confusion = load('confusion_log_perf.txt');
-                %confusion = load('data/confusion_log_perf_4hid.txt');
-                [sylly bini binj] = unique(confusion(:,1));
-                xtickl = {};
-                sylly_means = [];
-                sylly_counts = [];
-                for i = 1:length(sylly)
-                    xtickl{i} = sprintf('t^*_%d', i);
-                    sylly_counts(i) = length(find(confusion(:,1)==sylly(i)));
-                    sylly_means(i,:) = mean(confusion(find(confusion(:,1)==sylly(i)),2:3), 1);
-                end
-                sylly_means
-                colours = distinguishable_colors(length(sylly));
-                offsets = (rand(size(confusion(:,1))) - 0.5) * 2 * 0.33;
-                if size(confusion, 2) >= 4 & false
-                    sizes = (mapminmax(-confusion(:,4)')'+1.1)*8;
-                else
-                    sizes = 3;
-                end
-                subplot(1,2,1);
-                scatter(confusion(:,1)+offsets, confusion(:,2)*100, sizes, colours(binj,:), 'filled');
-                xlabel('Test syllable');
-                ylabel('True Positives %');
-                title('Correct detections');
-                if min(sylly) ~= max(sylly)
-                    set(gca, 'xlim', [min(sylly)-0.025 max(sylly)+0.025]);
-                end
-                %set(gca, 'ylim', [97 100]);
-                set(gca, 'xtick', sylly, 'xticklabel', xtickl);
-                
-                subplot(1,2,2);
-                scatter(confusion(:,1)+offsets, confusion(:,3)*100, sizes, colours(binj,:), 'filled');
-                xlabel('Test syllable');
-                ylabel('False Positives %');
-                title('Incorrect detections');
-                if min(sylly) ~= max(sylly)
-                    set(gca, 'xlim', [min(sylly)-0.025 max(sylly)+0.025]);
-                end
-                set(gca, 'xtick', sylly, 'xticklabel', xtickl);
-                %set(gca, 'ylim', [0 0.07]);
-                sylly_counts
+                replot_accuracies_concatanated('confusion_log_perf.txt');
             else
                 replot_accuracies_concatanated();
             end

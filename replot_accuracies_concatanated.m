@@ -9,17 +9,20 @@ function [] = replot_accuracies_concatanated(files, tex)
     % syllables, 100 runs, 3000 training songs, convolutional networks,
     % etc., can take a long time to complete.
     
+    real_bird_names = NaN;
+    % Custom code to pull out my datasets for publication:
     if ~exist('files', 'var') | isempty(files)
         files = {'/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
-            '/Volumes/Data/song/lny64/confusion_log_perf_published.txt', ...
             '/Volumes/Data/song/LNY46 0.28s or 0.195s/confusion_log_perf.txt', ...
             '/Volumes/Data/song/LNY42 0.38s/confusion_log_perf.txt', ...
             '/Volumes/Data/song/LNY4RB 0.25s/confusion_log_perf.txt', ...
-            '/Volumes/Data/song/lr28/all/confusion_log_perf.txt', ...
             '/Volumes/Data/song/lr12/all/confusion_log_perf.txt', ...
             '/Volumes/Data/song/lr13/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr28/all/confusion_log_perf.txt', ...
             '/Volumes/Data/song/lr77/all/confusion_log_perf.txt'
             };
+        % If >= 0, this is the "/"-delimited field number for the name of the bird.
+        real_bird_names = 4; % split() will count the leading "" before the first "/" as one, but I don't!
     elseif ischar(files)
         foo = files;
         files = {foo};
@@ -63,7 +66,13 @@ function [] = replot_accuracies_concatanated(files, tex)
             xtickl{i} = sprintf('%c t^*_%d', 'A'+f-1, i-n_so_far);
             xtime{i} = sprintf('%g', 1000*sylly(i-n_so_far));
             if i - n_so_far == 1
-                xtabl{i} = sprintf('%c', 'A'+f-1);
+                if real_bird_names >= 0
+                    foo = split(files{f}, {'\', '/'});
+                    % split() will count the leading "" before the first "/" as one, but I don't! So add 1 here:
+                    xtabl{i} = lower(strtok(foo(1+real_bird_names)));
+                else
+                    xtabl{i} = sprintf('%c', 'A'+f-1);
+                end
                 xfil{i} = files{f};
             else
                 xtabl{i} = ' ';

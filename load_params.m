@@ -8,11 +8,8 @@ function [ p ] = load_params(params_file);
         return;
     end
     
+    % The following are temporary variables created by this function. Don't save them.
     ignore = {'ans', 'v', 'params_file', 'ignore'};
-
-    disp(sprintf('********** Configuration file %s: *************', ...
-        strcat(pwd, filesep, params_file, '.m')));
-    type(params_file);
     
     eval(params_file);
    

@@ -60,6 +60,9 @@ params_file = 'params';                          % params.m
 
 % Load the user configuration.  This is done by a function that runs the params file as a .m file and adds all the discovered
 % parameters to the struct 'p'. This can then be checked against variables that actually exist.
+disp(sprintf('********** Configuration file %s: *************', ...
+    strcat(pwd, filesep, params_file, '.m')));
+
 user_parameters = load_params(params_file)
 
 pf = fieldnames(user_parameters);

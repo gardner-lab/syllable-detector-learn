@@ -11,15 +11,15 @@ function [] = timewarp_process_directory(template_filename, threshold, minsong, 
 %
 % DEPENDENCIES:        Nathan Perkins's find_audio, https://github.com/gardner-lab/find-audio
 
-AUTO_THRESHOLD_CORRECTION = 1.05; % Bump up the autothreshold
-NONSONG_THRESHOLD_GAP = 1.1; % Nonsong must be above this factor of threshold.
+AUTO_THRESHOLD_CORRECTION = 1.1; % Bump up the autothreshold
+NONSONG_THRESHOLD_GAP = 1.2; % Nonsong must be above this factor of threshold.
 threshold_detect_segment_s = 200; % Build a snippet of audio around this long (seconds) for auto-thresholding
 show_detection_points = true;
 pause_for_check = false;
 
 files = dir('channel*.wav');
 [~, sorted_index] = sortrows({files.name}');
-%sorted_index = randperm(length(files));
+sorted_index = randperm(length(files));
 files = files(sorted_index);
 nfiles = length(files);
 

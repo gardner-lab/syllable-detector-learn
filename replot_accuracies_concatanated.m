@@ -10,19 +10,26 @@ function [] = replot_accuracies_concatanated(files, tex)
     % etc., can take a long time to complete.
     
     real_bird_names = NaN;
+    real_times = false;
     % Custom code to pull out my datasets for publication:
     if ~exist('files', 'var') | isempty(files)
-        files = {'/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
+        files = {'/Volumes/Data/song/lny64/confusion_log_perf_2ms.txt', ...
+            '/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
             '/Volumes/Data/song/LNY46 0.28s or 0.195s/confusion_log_perf.txt', ...
             '/Volumes/Data/song/LNY42 0.38s/confusion_log_perf.txt', ...
             '/Volumes/Data/song/LNY4RB 0.25s/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr12/all/confusion_log_perf_2ms.txt', ...
             '/Volumes/Data/song/lr12/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr13/all/confusion_log_perf_2ms.txt', ...
             '/Volumes/Data/song/lr13/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr28/all/confusion_log_perf_2ms.txt', ...
             '/Volumes/Data/song/lr28/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr77/all/confusion_log_perf_2ms.txt', ...
             '/Volumes/Data/song/lr77/all/confusion_log_perf.txt'
             };
         % If >= 0, this is the "/"-delimited field number for the name of the bird.
         real_bird_names = 4; % split() will count the leading "" before the first "/" as one, but I don't!
+        real_times = true; % use actual detection times instead of t^*_n
     elseif ischar(files)
         foo = files;
         files = {foo};
@@ -63,18 +70,32 @@ function [] = replot_accuracies_concatanated(files, tex)
             ids(i) = id;
             confusions{f}(find(confusions{f}(:,1) == sylly(i-n_so_far)), 1) = id;
             
-            xtickl{i} = sprintf('%c t^*_%d', 'A'+f-1, i-n_so_far);
             xtime{i} = sprintf('%g', 1000*sylly(i-n_so_far));
             if i - n_so_far == 1
                 if real_bird_names >= 0
                     foo = split(files{f}, {'\', '/'});
                     % split() will count the leading "" before the first "/" as one, but I don't! So add 1 here:
                     xtabl{i} = lower(strtok(foo(1+real_bird_names)));
+                    if real_times
+                        xtickl{i} = sprintf('%s_{%s}', xtabl{i}, xtime{i});
+                    else
+                        xtickl{i} = sprintf('%s t^*_%d', xtabl{i}, i-n_so_far);
+                    end
                 else
+                    if real_times
+                        xtickl{i} = sprintf('%c_{%s}', 'A'+f-1, xtime{i});
+                    else
+                        xtickl{i} = sprintf('%c t^*_%d', 'A'+f-1, i-n_so_far);
+                    end
                     xtabl{i} = sprintf('%c', 'A'+f-1);
                 end
                 xfil{i} = files{f};
             else
+                if real_times
+                    xtickl{i} = xtime{i};
+                else
+                    xtickl{i} = sprintf('t^*_%d', i-n_so_far);
+                end
                 xtabl{i} = ' ';
                 xfil{i} = '';
             end
@@ -127,6 +148,9 @@ function [] = replot_accuracies_concatanated(files, tex)
     %end
     %set(gca, 'ylim', [97 100]);
     set(gca, 'xtick', ids, 'xticklabel', xtickl);
+    if exist('xticklabel_rotate', 'file')
+        xticklabel_rotate([], 60);
+    end
     
     subplot(1,2,2);
     scatter(confusion(:,1)+offsets, confusion(:,3)*100, sizes, colours(binj,:), 'filled');
@@ -137,6 +161,10 @@ function [] = replot_accuracies_concatanated(files, tex)
     %    set(gca, 'xlim', [min(ids)-0.5 max(ids)+0.5]);
     %end
     set(gca, 'xtick', ids, 'xticklabel', xtickl);
+    if exist('xticklabel_rotate', 'file')
+        xticklabel_rotate([], 60);
+    end
+
     %set(gca, 'ylim', [0 0.07]);
     sylly_counts
 end

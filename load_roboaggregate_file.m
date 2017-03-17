@@ -128,11 +128,13 @@ spectrograms = abs(spectrograms);
 spectrogram_avg_img = squeeze(log(sum(spectrograms(1:nmatchingsongs,:,:))));
 
 %% Draw the pretty full-res spectrogram and the targets
-figure(4);
-imagesc([times(1) times(end)]*1000, [freqs(1) freqs(end)]/1000, spectrogram_avg_img);
-axis xy;
-xlabel('Time (ms)');
-ylabel('Frequency (kHz)');
+try
+    figure(4);
+    imagesc([times(1) times(end)]*1000, [freqs(1) freqs(end)]/1000, spectrogram_avg_img);
+    axis xy;
+    xlabel('Time (ms)');
+    ylabel('Frequency (kHz)');
+end
 
 % Construct "ds" (downsampled) dataset.  This is heavily downsampled to save on computational
 % resources.  This would better be done by modifying the spectrogram's

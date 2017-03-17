@@ -1,3 +1,4 @@
+function learn_detector
 %    learn_detector: train a neural network to detect zebra finch syllables.
 %        Requires data in 'song.mat', and training configuration in 'params.m'.
 %        See README.md for instructions.
@@ -16,8 +17,6 @@
 %    You should have received a copy of the GNU General Public License
 %    along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
-clear;
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%% Configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -105,11 +104,12 @@ rng('shuffle');
 % If confusion_log_perf.txt exists, there is the risk that something important (parameters, code...)
 % has changed since that file was last added to.  Ask the user.
 if nruns > 1 & separate_network_for_each_syllable & exist('./confusion_log_perf.txt', 'file')
-    response = questdlg('A multi-run logfile exists.  Keep adding to it?', ...
-        'Keep logfile?', ...
-        'yes', ...
-        'no', ...
-        'yes');
+    %response = questdlg('A multi-run logfile exists.  Keep adding to it?', ...
+    %    'Keep logfile?', ...
+    %    'yes', ...
+    %    'no', ...
+    %    'yes');
+    response = 'yes';
     
     if strcmp(response, 'no')
         movefile('confusion_log_perf.txt', 'confusion_log_perf.backup', 'f');
@@ -155,16 +155,18 @@ fprintf('Got %d songs, %d cage noise, %d songs-and-nonsongs including %d of synt
 
 
 %% Draw the spectral image.  If no times_of_interest defined, this is what the user will use to choose some.
-figure(4);
-subplot(1,1,1);
-specfig = imagesc(times([1 end])*1000, freqs([1 end])/1000, spectrogram_avg_img_songs_log);
-axis xy;
-xlabel('Time (ms)');
-ylabel('Frequency (kHz)');
-set(gca, 'YLim', [0 10]);
+try
+    figure(4);
+    subplot(1,1,1);
+    specfig = imagesc(times([1 end])*1000, freqs([1 end])/1000, spectrogram_avg_img_songs_log);
+    axis xy;
+    xlabel('Time (ms)');
+    ylabel('Frequency (kHz)');
+    set(gca, 'YLim', [0 10]);
+end
 if ~exist('times_of_interest_ms', 'var') | isempty(times_of_interest_ms)
     disp(sprintf('No times of interest defined.  Please look at the spectrogram in Figure 4 and define one or more in ''%s'', with "times_of_interest_ms = [x y];" for detection at x and y milliseconds into the spectrogram.', strcat(pwd, filesep, params_file, '.m')));
-    return; 
+    return;
 end
 
 times_of_interest_s = times_of_interest_ms / 1e3;
@@ -342,26 +344,28 @@ for run = first_run:nruns
         
         
         %% Draw the pretty full-res spectrogram and the targets
-        figure(4);
-        subplot(1,1,1);
-        %subplot(ntsteps_of_interest+1,1,1);
-        specfig = imagesc(times([1 end])*1000, freqs([1 end])/1000, spectrogram_avg_img_songs_log);
-        axis xy;
-        xlabel('Time (ms)');
-        ylabel('Frequency (kHz)');
-        
-        % Draw the syllables of interest:
-        for i = 1:ntsteps_of_interest
-            line(toi(i)*[1;1]*1000, freqs([1 end])/1000, 'Color', [1 0 0]);
-            windowrect = rectangle('Position', [(toi(i) - time_window_s)*1000 ...
-                freq_range(1)/1000 ...
-                time_window_s(1)*1000 ...
-                (freq_range(2)-freq_range(1))/1000], ...
-                'EdgeColor', [1 0 0]);
+        try
+            figure(4);
+            subplot(1,1,1);
+            %subplot(ntsteps_of_interest+1,1,1);
+            specfig = imagesc(times([1 end])*1000, freqs([1 end])/1000, spectrogram_avg_img_songs_log);
+            axis xy;
+            xlabel('Time (ms)');
+            ylabel('Frequency (kHz)');
+            
+            % Draw the syllables of interest:
+            for i = 1:ntsteps_of_interest
+                line(toi(i)*[1;1]*1000, freqs([1 end])/1000, 'Color', [1 0 0]);
+                windowrect = rectangle('Position', [(toi(i) - time_window_s)*1000 ...
+                    freq_range(1)/1000 ...
+                    time_window_s(1)*1000 ...
+                    (freq_range(2)-freq_range(1))/1000], ...
+                    'EdgeColor', [1 0 0]);
+            end
+            set(gca, 'YLim', [0 10]);
+            drawnow;
+        catch ME
         end
-        set(gca, 'YLim', [0 10]);
-        drawnow;
-        
         
         disp(sprintf('Creating training set from %d songs and nonsongs; test set from the remainder...', ntrainsongsandnonsongs));
         % These are shuffled according to randomorder. Because nonsingin_fraction is used in the creation of the data set, any
@@ -519,6 +523,7 @@ for run = first_run:nruns
         sample_offsets_net = zeros(ntsteps_of_interest, nsongsandnonsongs);
 
         % For each TOI, plot its response graph
+        try
         figure(6);
         for i = 1:length(toi)
             if separate_network_for_each_syllable
@@ -651,7 +656,8 @@ for run = first_run:nruns
                 end
             end
         end
-        
+        catch ME
+        end
         triggertimes_backup = triggertimes;
         
         
@@ -747,14 +753,17 @@ for run = first_run:nruns
         
         
         if nruns > 1 & separate_network_for_each_syllable
-            %% Plot the figure of errors for all networks over all trials...
-            figure(9);
-            if false
-                % Plot just the one we're working on:
-                replot_accuracies_concatanated('confusion_log_perf.txt');
-            else
-                % Plot them all!
-                replot_accuracies_concatanated();
+            try
+                %% Plot the figure of errors for all networks over all trials...
+                figure(9);
+                if false
+                    % Plot just the one we're working on:
+                    replot_accuracies_concatanated('confusion_log_perf.txt');
+                else
+                    % Plot them all!
+                    replot_accuracies_concatanated();
+                end
+            catch ME
             end
         end
         

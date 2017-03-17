@@ -663,21 +663,21 @@ for run = first_run:nruns
         end
         catch ME
         end
-        triggertimes_backup = triggertimes;
-        
-        
-        % For syllable timing variability analysis, look only for "correct" hits.  Is this what I want?
-        triggertimes(find(triggertimes == 0)) = NaN;
-        for i = 1:ntsteps_of_interest
-            ntt = triggertimes(:,i);
-            ntt(find(abs(ntt - toi(i)) > 0.02)) = NaN;
-            triggertimes(:,i) = ntt;
-        end
         
         %% If possible, plot variability over the course of the day.  This
         % requires one network trained on multiple syllables, and computes timing differences
         % between each of the syllables in the roboaggregate file.
         if ntsteps_of_interest >= 2 & false
+            triggertimes_backup = triggertimes;
+            
+            % For syllable timing variability analysis, look only for "correct" hits.  Is this what I want?
+            triggertimes(find(triggertimes == 0)) = NaN;
+            for i = 1:ntsteps_of_interest
+                ntt = triggertimes(:,i);
+                ntt(find(abs(ntt - toi(i)) > 0.02)) = NaN;
+                triggertimes(:,i) = ntt;
+            end
+            
             %figure(233);
             %clf;
             %hold on;

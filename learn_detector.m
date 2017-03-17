@@ -109,6 +109,7 @@ if nruns > 1 & separate_network_for_each_syllable & exist('./confusion_log_perf.
     %    'yes', ...
     %    'no', ...
     %    'yes');
+    warning('Appending to extant confusion_log_perf.txt.');
     response = 'yes';
     
     if strcmp(response, 'no')
@@ -119,14 +120,18 @@ if nruns > 1 & separate_network_for_each_syllable & exist('./confusion_log_perf.
         % This file is created in show_confusion.m.
         confusion = load('confusion_log_perf.txt');
         [sylly bini binj] = unique(confusion(:,1));
-        % But we only care about the ones that times_of_interest_s includes:
+        % But we only care about the ones that times_of_interest_ms includes:
         sylly = unique([intersect(sylly', times_of_interest_ms/1000) times_of_interest_ms/1000]);
         sylly_counts = [];
         for i = 1:length(sylly)
             sylly_counts(i) = length(find(confusion(:,1)==sylly(i)));
         end
         syllables_still_needed = [sylly * 1000 ; nruns - sylly_counts];
-        
+        if ~sum(syllables_still_needed(2,:))
+            disp('Looks like we have all the trials we needed. Returning.');
+            return;
+        end
+
         disp(sprintf('Continuing where we left off. Progress so far (time_of_interest_ms ; # runs still required):'));
         syllables_still_needed
         

@@ -1,5 +1,5 @@
 %% Plot the figure of errors for all networks over all trials...
-function [] = replot_accuracies_concatanated(files, tex)
+function [] = replot_accuracies_concatanated(varargin)
     
     % The input file is created in show_confusion.m.  No effort is made to
     % ensure that it doesn't contain values for different configurations,
@@ -11,6 +11,16 @@ function [] = replot_accuracies_concatanated(files, tex)
     
     real_bird_names = NaN;
     real_times = false;
+    tex = false;
+    
+    for i = 1:2:nargin
+        if ~exist(varargin{i}, 'var')
+            warning('Argument ''%s'' is invalid.', varargin{i});
+        else
+            eval(sprintf('%s = varargin{i+1}', varargin{i}));
+        end
+    end
+    
     % Custom code to pull out my datasets for publication:
     if ~exist('files', 'var') | isempty(files)
         files = {...
@@ -112,7 +122,7 @@ function [] = replot_accuracies_concatanated(files, tex)
         confusion = [confusion ; confusions{f}];
     end
     
-    performance = sprintf('Bird\tTime\tTrue Pos %%\tFalse Pos %%');
+    performance = sprintf('Bird\tTime\tTrue Pos %%\tFalse Pos %%\tRuns\tFile');
     for i = 1:length(xtickl)
         if tex
             if i == length(xtickl)
@@ -127,9 +137,10 @@ function [] = replot_accuracies_concatanated(files, tex)
                 xfil{i});
             performance(i+1, 1:length(str)) = str;
         else
-            str = sprintf('%s\t%s\t%s\t\t%s\t%s', xtabl{i}, xtime{i}, ...
+            str = sprintf('%s\t%s\t%s\t\t%s\t\t%d\t%s', xtabl{i}, xtime{i}, ...
                 sigfig(sylly_means(i,1)*100, 4), ...
                 sigfig(sylly_means(i,2)*100, 2, 'pad'), ...
+                sylly_counts(i), ...
                 xfil{i});
             performance(i+1, 1:length(str)) = str;
         end
@@ -143,33 +154,34 @@ function [] = replot_accuracies_concatanated(files, tex)
     else
         sizes = 3;
     end
-    subplot(1,2,1);
-    scatter(confusion(:,1)+offsets, confusion(:,2)*100, sizes, colours(binj,:), 'filled');
-    xlabel('Test syllable');
-    ylabel('True Positives %');
-    title('Correct detections');
-    %if min(confusion(:,1)) ~= max(confusion(:,1))
-    %    set(gca, 'xlim', [min(confusion(:,1))-0.4 max(confusion(:,1))+0.4]);
-    %end
-    %set(gca, 'ylim', [97 100]);
-    set(gca, 'xtick', ids, 'xticklabel', xtickl);
-    if exist('xticklabel_rotate', 'file')
-        xticklabel_rotate([], 60);
+    try
+        subplot(1,2,1);
+        scatter(confusion(:,1)+offsets, confusion(:,2)*100, sizes, colours(binj,:), 'filled');
+        xlabel('Test syllable');
+        ylabel('True Positives %');
+        title('Correct detections');
+        %if min(confusion(:,1)) ~= max(confusion(:,1))
+        %    set(gca, 'xlim', [min(confusion(:,1))-0.4 max(confusion(:,1))+0.4]);
+        %end
+        %set(gca, 'ylim', [97 100]);
+        set(gca, 'xtick', ids, 'xticklabel', xtickl);
+        if exist('xticklabel_rotate', 'file')
+            xticklabel_rotate([], 60);
+        end
+        
+        subplot(1,2,2);
+        scatter(confusion(:,1)+offsets, confusion(:,3)*100, sizes, colours(binj,:), 'filled');
+        xlabel('Test syllable');
+        ylabel('False Positives %');
+        title('Incorrect detections');
+        %if length(ids) > 1
+        %    set(gca, 'xlim', [min(ids)-0.5 max(ids)+0.5]);
+        %end
+        set(gca, 'xtick', ids, 'xticklabel', xtickl);
+        if exist('xticklabel_rotate', 'file')
+            xticklabel_rotate([], 60);
+        end
     end
-    
-    subplot(1,2,2);
-    scatter(confusion(:,1)+offsets, confusion(:,3)*100, sizes, colours(binj,:), 'filled');
-    xlabel('Test syllable');
-    ylabel('False Positives %');
-    title('Incorrect detections');
-    %if length(ids) > 1
-    %    set(gca, 'xlim', [min(ids)-0.5 max(ids)+0.5]);
-    %end
-    set(gca, 'xtick', ids, 'xticklabel', xtickl);
-    if exist('xticklabel_rotate', 'file')
-        xticklabel_rotate([], 60);
-    end
-
     %set(gca, 'ylim', [0 0.07]);
-    sylly_counts
+    %sylly_counts
 end

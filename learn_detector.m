@@ -1,7 +1,11 @@
-function learn_detector
+function learn_detector(varargin)
 %    learn_detector: train a neural network to detect zebra finch syllables.
-%        Requires data in 'song.mat', and training configuration in 'params.m'.
-%        See README.md for instructions.
+%
+%        Requires data in (by default) 'song.mat', and training configuration
+%        in 'params.m' and/or parameters given as 
+%        learn_detector('parameter', value) pairs. See README.md for
+%        instructions.
+%
 %    Copyright (C) 2017  Ben Pearre
 
 %    This program is free software: you can redistribute it and/or modify
@@ -44,7 +48,7 @@ time_window_ms = 50;                             % How many seconds long is the 
 false_positive_cost = 1;                         % Cost of false positives is relative to that of false negatives.
 create_song_test_file = -1;                      % Big, and take some time to save.  1: always, 0: never, -1: only if nruns == 1
 song_crop_region = [-Inf Inf];                   % Crop the ends off the aligned song (milliseconds).  [] or [-Inf Inf] for no crop.  YOU MAY (OR MAY NOT?) WANT TO ADJUST TIMES OF INTEREST: times_of_interest_ms = [ 550 660 ] - song_crop_region(1)
-
+log_file_exists_action = 'ask';                  % If confusion_log exists, 'ask', 'append', 'replace'
 
 
 % The two required files:
@@ -59,21 +63,37 @@ params_file = 'params';                          % params.m
 
 % Load the user configuration.  This is done by a function that runs the params file as a .m file and adds all the discovered
 % parameters to the struct 'p'. This can then be checked against variables that actually exist.
-disp(sprintf('********** Configuration file %s: *************', ...
-    strcat(pwd, filesep, params_file, '.m')));
-
-user_parameters = load_params(params_file)
-
-pf = fieldnames(user_parameters);
-for i = 1:length(pf)
-    if exist(pf{i}, 'var')
-        eval(sprintf('%s = user_parameters.%s;', pf{i}, pf{i}));
-    else
-        error('Parameter name ''%s'' is invalid.', pf{i});
+if ~isempty(params_file)
+    disp(sprintf('********** Configuration file %s: *************', ...
+        strcat(pwd, filesep, params_file, '.m')));
+    
+    user_parameters = load_params(params_file)
+    
+    pf = fieldnames(user_parameters);
+    for i = 1:length(pf)
+        if exist(pf{i}, 'var')
+            eval(sprintf('%s = user_parameters.%s;', pf{i}, pf{i}));
+        else
+            error('Parameter name ''%s'' is invalid.', pf{i});
+        end
     end
 end
-disp('**************************************************************************');
 
+if nargin
+    disp('********** Processing function arguments... ******************************');
+    
+    % Also allow override of any parameter on the command line
+    for i = 1:2:nargin
+        if ~exist(varargin{i}, 'var')
+            warning('learn_detector: Argument ''%s'' is invalid.', varargin{i});
+        else
+            sprintf('... %s', varargin{i});
+            eval(sprintf('%s = varargin{i+1};', varargin{i}));
+        end
+    end
+    
+    disp('**************************************************************************');
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%% End Configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -104,19 +124,23 @@ rng('shuffle');
 % If confusion_log_perf.txt exists, there is the risk that something important (parameters, code...)
 % has changed since that file was last added to.  Ask the user.
 if nruns > 1 & separate_network_for_each_syllable & exist('./confusion_log_perf.txt', 'file')
-    %response = questdlg('A multi-run logfile exists.  Keep adding to it?', ...
-    %    'Keep logfile?', ...
-    %    'yes', ...
-    %    'no', ...
-    %    'yes');
-    warning('Appending to extant confusion_log_perf.txt.');
-    response = 'yes';
+    if strcmp(log_file_exists_action, 'ask')
+        log_file_exists_action = questdlg('A multi-run logfile exists.  Keep adding to it?', ...
+            'What should I do with the logfile?', ...
+            'append', ...
+            'replace', ...
+            'append');
+    end
     
-    if strcmp(response, 'no')
-        movefile('confusion_log_perf.txt', 'confusion_log_perf.backup', 'f');
+    if strcmp(log_file_exists_action, 'replace')
+        old_file = dir('confusion_log_perf.txt');
+        old_file_date = datestr(old_file.datenum, 31);
+        old_file_new_name = sprintf('confusion_log_perf.%s.txt', old_file_date);
+        
+        movefile('confusion_log_perf.txt', old_file_new_name, 'f');
         first_run = 1;
-        disp('Logfile has been renamed ''confusion_log_perf.backup''');
-    else
+        disp(sprintf('Old logfile has been renamed ''%s''', old_file_new_name));
+    elseif strcmp(log_file_exists_action, 'append')
         % This file is created in show_confusion.m.
         confusion = load('confusion_log_perf.txt');
         [sylly bini binj] = unique(confusion(:,1));
@@ -136,6 +160,8 @@ if nruns > 1 & separate_network_for_each_syllable & exist('./confusion_log_perf.
         syllables_still_needed
         
         first_run = min(sylly_counts) + 1;
+    else
+        error('log_file_exists_action = ''%s'', but must be ''append'', ''replace'', or ''ask''', log_file_exists_action);
     end
 else
     first_run = 1;

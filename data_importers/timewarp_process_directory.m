@@ -1,25 +1,36 @@
 function [] = timewarp_process_directory(template_filename, threshold, minsong, minnonsong);
-% Apply Nathan's dynamic timewarp to all the wave files in a directory.  I assume they're called
+% Zebra finch song processing:
+%
+% This is a bridge between raw audio recordings of zebra finch, Nathan Perkins's dynamic timewarp song finder
+% (https://github.com/gardner-lab/find-audio), and Ben Pearre's realtime syllable detector
+% (https://github.com/gardner-lab/syllable-detector-learn). It reads in the audio, uses dynamic timewarp matching to find songs,
+% and saves a song.mat file as required by Ben's learning code.
+%
+% Apply Nathan Perkins's dynamic timewarp technique to all the wave files in a directory.  I assume they're called
 % "channel*.wav".  If the template file '0_template.wav' exists, it will be used, otherwise you will
 % be prompted to create it.
 %
-% threshold:           match threshold below which stuff is considered a matching song (default all files)
-% minsong, minnonsong: keep going until we exceed both of these numbers (default all files)
-% template_filename:   filename of a wave file containing one sample of the target song (default 0_template.wav)
+% template_filename:   filename of a wave file containing one sample of the target song (default 0_template.wav);
+%                      if empty, then get the user to define a template.
+% threshold:           The match threshold below which stuff is considered a matching song;
+%                      the default is to use autothresholding.
+% minsong, minnonsong: Keep going until we exceed both of these numbers;
+%                      the default is to process all files. If only one is provided, minsong = minnonsong
 %
-% OUTPUT:              creates a training file, song.mat, as specified in README.md
+% OUTPUT:              creates a training file, song.mat, as specified in 
+%                      https://github.com/gardner-lab/syllable-detector-learn/blob/master/README.md
 %
 % DEPENDENCIES:        Nathan Perkins's find_audio, https://github.com/gardner-lab/find-audio
 
-AUTO_THRESHOLD_CORRECTION = 1.1; % Bump up the autothreshold
-NONSONG_THRESHOLD_GAP = 1.2; % Nonsong must be above this factor of threshold.
+AUTO_THRESHOLD_CORRECTION = 1.1; % Bump up the autothreshold by this factor (include more tenuous matches)
+NONSONG_THRESHOLD_GAP = 1.2; % Nonsong must be above this factor of threshold
 threshold_detect_segment_s = 200; % Build a snippet of audio around this long (seconds) for auto-thresholding
 show_detection_points = true;
 pause_for_check = false;
 
 files = dir('channel*.wav');
 [~, sorted_index] = sortrows({files.name}');
-sorted_index = randperm(length(files));
+% sorted_index = randperm(length(files)); % Maybe randomise the file order?
 files = files(sorted_index);
 nfiles = length(files);
 
@@ -41,7 +52,7 @@ global wbar;
 
 if isempty(template_filename) ...
         | ( ~exist(template_filename, 'file') & ~exist(strcat(template_filename, '.wav'), 'file'))
-    [template_filename, template_source_filename] = make_template;
+    [template_filename, template_source_filename] = make_template();
 end
 [template, template_fs] = audioread(template_filename);
 template_length = length(template);

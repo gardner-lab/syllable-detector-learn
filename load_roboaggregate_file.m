@@ -125,9 +125,18 @@ spectrograms = single(spectrograms);
 
 % Create a pretty graphic for display (which happens later)
 spectrograms = abs(spectrograms);
-spectrogram_avg_img = squeeze(log(sum(spectrograms(1:nmatchingsongs,:,:))));
+spectrogram_avg_img = squeeze(sum(spectrograms(1:nmatchingsongs,:,:)));
 
-%% Draw the pretty full-res spectrogram and the targets
+% Poor man's filter to take off the high amplitudes at uselessly low frequencies:
+low_freq_i = find(freqs < 200);
+spectrogram_avg_img(low_freq_i,:) = 0;
+
+% Kill off any signal below mean-1std, making the spectrogram prettier:
+spectrogram_avg_img = reshape(zscore(spectrogram_avg_img(:)), size(spectrogram_avg_img)) + 1;
+spectrogram_avg_img(find(spectrogram_avg_img < 0)) = 0;
+spectrogram_avg_img = log(spectrogram_avg_img + eps);
+
+%% Draw the pretty full-res spectrogram
 try
     figure(4);
     imagesc([times(1) times(end)]*1000, [freqs(1) freqs(end)]/1000, spectrogram_avg_img);

@@ -1,13 +1,32 @@
 %% Plot the figure of errors for all networks over all trials...
+% The input file is created in show_confusion.m.  No effort is made to
+% ensure that it doesn't contain values for different configurations,
+% or even different-sized columns! So if you want to use it, best make
+% sure you start by deleting the previous confusion_log_perf.txt.  Keep
+% it in order to allow restart of partially completed jobs, since 10
+% syllables, 100 runs, 3000 training songs, convolutional networks,
+% etc., can take a long time to complete.
+
+% Copyright (C) 2017  Ben Pearre
+%
+% This file is part of the Zebra Finch Syllable Detector, syllable-detector-learn.
+% 
+% The Zebra Finch Syllable Detector is free software: you can redistribute it and/or
+% modify it under the terms of the GNU Lesser General Public License as published by
+% the Free Software Foundation, either version 3 of the License, or (at your option)
+% any later version.
+% 
+% The Zebra Finch Syllable Detector is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+% FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+% more details.
+% 
+% You should have received a copy of the GNU Lesser General Public License
+% along with the Zebra Finch Syllable Detector.  If not, see
+% <http://www.gnu.org/licenses/>.
+
 function [] = replot_accuracies_concatanated(varargin)
     
-    % The input file is created in show_confusion.m.  No effort is made to
-    % ensure that it doesn't contain values for different configurations,
-    % or even different-sized columns! So if you want to use it, best make
-    % sure you start by deleting the previous confusion_log_perf.txt.  Keep
-    % it in order to allow restart of partially completed jobs, since 10
-    % syllables, 100 runs, 3000 training songs, convolutional networks,
-    % etc., can take a long time to complete.
     
     real_bird_names = NaN;
     real_times = false;

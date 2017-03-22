@@ -1,35 +1,38 @@
-function learn_detector(varargin)
-%    learn_detector: train a neural network to detect zebra finch syllables.
+% learn_detector: train a neural network to detect zebra finch syllables.
 %
 %        Requires data in (by default) 'song.mat', and training configuration
 %        in 'params.m' and/or parameters given as 
 %        learn_detector('parameter', value) pairs. See README.md for
 %        instructions.
 %
-%    Copyright (C) 2017  Ben Pearre
-
-%    This program is free software: you can redistribute it and/or modify
-%    it under the terms of the GNU General Public License as published by
-%    the Free Software Foundation, either version 3 of the License, or
-%    (at your option) any later version.
-
-%    This program is distributed in the hope that it will be useful,
-%    but WITHOUT ANY WARRANTY; without even the implied warranty of
-%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-%    GNU General Public License for more details.
-
-%    You should have received a copy of the GNU General Public License
-%    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+% Copyright (C) 2017  Ben Pearre
+%
+% This file is part of the Zebra Finch Syllable Detector, syllable-detector-learn.
+% 
+% The Zebra Finch Syllable Detector is free software: you can redistribute it and/or
+% modify it under the terms of the GNU Lesser General Public License as published by
+% the Free Software Foundation, either version 3 of the License, or (at your option)
+% any later version.
+% 
+% The Zebra Finch Syllable Detector is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+% FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+% more details.
+% 
+% You should have received a copy of the GNU Lesser General Public License
+% along with the Zebra Finch Syllable Detector.  If not, see
+% <http://www.gnu.org/licenses/>.
     
+function learn_detector(varargin)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%% Configuration %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% These are defaults.  If you want to change them, do so in params.m
-times_of_interest_ms = NaN;                      % Milliseconds at which to trigger. Exists here just to define it as valid.
+times_of_interest_ms = NaN;                      % Milliseconds at which to trigger. Exists here just to define it as a valid parameter.
 nhidden_per_output = 4;                          % How many hidden units per syllable?  2 works and trains fast.  4 works ~20% better...
-fft_time_shift_seconds_target = 0.0015;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train
+fft_time_shift_seconds_target = 0.0015;          % FFT frame rate (seconds).  Paper mostly used 0.0015 s: great for timing, but slow to train.
 use_jeff_realignment_train = false;              % Micro-realign at each detection point using Jeff's time-domain code?  Don't do this.
 use_jeff_realignment_test = false;               % Micro-realign test data only at each detection point using Jeff's time-domain code.  Nah.
 use_nn_realignment_test = false;                 % Try using the trained network to realign test songs (reduce jitter?)
@@ -42,9 +45,9 @@ fft_size = 256;                                  % FFT size
 use_pattern_net = false;                         % Use MATLAB's pattern net (fine, but no control over false-pos vs false-neg cost)
 do_not_randomise = false;                        % Use songs in original order?
 separate_network_for_each_syllable = true;       % Train a separate network for each time of interest?  Or one network with multiple outs?
-nruns = 1;                                       % Perform a few training runs and create beeswarm plot (paper figure 3 used 100)?
-freq_range = [1000 8000];                        % Frequencies of the song to examine
-time_window_ms = 50;                             % How many seconds long is the detection sliding-time-window?
+nruns = 1;                                       % Perform a few training runs and create beeswarm plot? (paper figure 3 used 100)
+freq_range = [1000 8000];                        % Frequencies of the song to examine.
+time_window_ms = 50;                             % How many seconds long is the detection sliding-time-window? Useful range is about 30-100.
 false_positive_cost = 1;                         % Cost of false positives is relative to that of false negatives.
 create_song_test_file = -1;                      % Big, and take some time to save.  1: always, 0: never, -1: only if nruns == 1
 song_crop_region = [-Inf Inf];                   % Crop the ends off the aligned song (milliseconds).  [] or [-Inf Inf] for no crop.  YOU MAY (OR MAY NOT?) WANT TO ADJUST TIMES OF INTEREST: times_of_interest_ms = [ 550 660 ] - song_crop_region(1)

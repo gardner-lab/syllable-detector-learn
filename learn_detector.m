@@ -79,7 +79,7 @@ if ~isempty(params_file)
     end
 end
 
-if nargin
+if nargin > 0
     disp('********** Processing function arguments... ******************************');
     
     % Also allow override of any parameter on the command line
@@ -143,16 +143,16 @@ if nruns > 1 & separate_network_for_each_syllable & exist('./confusion_log_perf.
     elseif strcmp(log_file_exists_action, 'append')
         % This file is created in show_confusion.m.
         confusion = load('confusion_log_perf.txt');
-        [sylly bini binj] = unique(confusion(:,1));
-        % But we only care about the ones that times_of_interest_ms includes:
-        sylly = unique([intersect(sylly', times_of_interest_ms/1000) times_of_interest_ms/1000]);
+        %sylly = union(confusion(:,1)', times_of_interest_ms / 1000));
+        % But we probably only care about the ones in times_of_interest_ms. So scratch that?
+        sylly = times_of_interest_ms/1000;
         sylly_counts = [];
         for i = 1:length(sylly)
             sylly_counts(i) = length(find(confusion(:,1)==sylly(i)));
         end
         syllables_still_needed = [sylly * 1000 ; nruns - sylly_counts];
         if ~sum(syllables_still_needed(2,:))
-            disp('Looks like we have all the trials we needed. Returning.');
+            disp('Done! (Looks like we have all the trials we needed.)');
             return;
         end
 
@@ -785,15 +785,9 @@ for run = first_run:nruns
         
         if nruns > 1 & separate_network_for_each_syllable
             try
-                %% Plot the figure of errors for all networks over all trials...
+                %% Plot the figure of errors for all networks over all trials.
                 figure(9);
-                if false
-                    % Plot just the one we're working on:
-                    replot_accuracies_concatanated('confusion_log_perf.txt');
-                else
-                    % Plot them all!
-                    replot_accuracies_concatanated();
-                end
+                replot_accuracies_concatanated('files', 'confusion_log_perf.txt');
             catch ME
             end
         end

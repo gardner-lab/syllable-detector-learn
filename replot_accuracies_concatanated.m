@@ -12,6 +12,7 @@ function [] = replot_accuracies_concatanated(varargin)
     real_bird_names = NaN;
     real_times = false;
     tex = false;
+    files = 'confusion_log_perf.txt';
     
     for i = 1:2:nargin
         if ~exist(varargin{i}, 'var')
@@ -21,8 +22,8 @@ function [] = replot_accuracies_concatanated(varargin)
         end
     end
     
-    % Custom code to pull out my datasets for publication:
-    if ~exist('files', 'var') | isempty(files)
+    % Custom code to pull out my datasets for comparison:
+    if strcmp(files, 'all')
         files = {...
             '/Volumes/Data/song/lny64/confusion_log_perf_2ms.txt', ...
             '/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
@@ -41,6 +42,17 @@ function [] = replot_accuracies_concatanated(varargin)
             '/Volumes/Data/song/lr77/all/confusion_log_perf_2ms.txt', ...
             '/Volumes/Data/song/lr77/all/confusion_log_perf.txt'
             };
+        % Custom code to pull out my datasets for publication:
+        files = {...
+            '/Volumes/Data/song/lny64/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lny42/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lny46/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lny4rb/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr12/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr13/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr28/all/confusion_log_perf.txt', ...
+            '/Volumes/Data/song/lr77/all/confusion_log_perf.txt'
+            };
         % If >= 0, this is the "/"-delimited field number for the name of the bird.
         real_bird_names = 4; % split() will count the leading "" before the first "/" as one, but I don't!
         real_times = true; % use actual detection times instead of t^*_n
@@ -50,11 +62,7 @@ function [] = replot_accuracies_concatanated(varargin)
     elseif iscell(files)
         % That's cool; do naught
     else
-        error('The input parameter should be a confusion_log filename\nor a cell array thereof.');
-    end
-    
-    if ~exist('tex', 'var')
-        tex = false;
+        error('The input parameter ''files'' should be a confusion_log filename\nor a cell array thereof.');
     end
     
     xtickl = {};
@@ -74,6 +82,11 @@ function [] = replot_accuracies_concatanated(varargin)
             continue;
         end
         
+        if real_bird_names >= 0
+            foo = split(files{f}, {'\', '/'});
+            birdname = lower(strtok(foo(1+real_bird_names)));
+        end
+        
         % First, we have to do all this in order to count the unique syllables:
         [sylly bini binj_plus] = unique(confusions{f}(:,1));
         binj = [binj; binj_plus + n_so_far];
@@ -84,34 +97,39 @@ function [] = replot_accuracies_concatanated(varargin)
             ids(i) = id;
             confusions{f}(find(confusions{f}(:,1) == sylly(i-n_so_far)), 1) = id;
             
-            xtime{i} = sprintf('%g', 1000*sylly(i-n_so_far));
+            if strcmp(birdname, 'lny64') & tex
+                xtime{i} = sprintf('%g $[t^*_%d]$', 1000*sylly(i-n_so_far), i-n_so_far);
+            else
+                xtime{i} = sprintf('%g', 1000*sylly(i-n_so_far));
+            end
             % There's a table and a chart, bird names, bird autolabels ("A", "B", etc), times in ms, times in t^*_n...
             if i - n_so_far == 1
+                % First timepoint for a given bird/file
                 if real_bird_names >= 0
-                    foo = split(files{f}, {'\', '/'});
                     % split() will count the leading "" before the first "/" as one, but I don't! So add 1 here:
-                    xtabl{i} = lower(strtok(foo(1+real_bird_names)));
+                    xtabl{i} = birdname;
                     if real_times
-                        xtickl{i} = sprintf('%s_{%s}', xtabl{i}, xtime{i});
+                        xtickl{i} = sprintf('%s: {%s}', xtabl{i}, xtime{i});
                     else
-                        xtickl{i} = sprintf('%s t^*_%d', xtabl{i}, i-n_so_far);
+                        xtickl{i} = sprintf('%s: t^*_%d', xtabl{i}, i-n_so_far);
                     end
                 else
                     if real_times
-                        xtickl{i} = sprintf('%c_{%s}', 'A'+f-1, xtime{i});
+                        xtickl{i} = sprintf('%c: {%s}', 'A'+f-1, xtime{i});
                     else
-                        xtickl{i} = sprintf('%c t^*_%d', 'A'+f-1, i-n_so_far);
+                        xtickl{i} = sprintf('%c: t^*_%d', 'A'+f-1, i-n_so_far);
                     end
                     xtabl{i} = sprintf('%c', 'A'+f-1);
                 end
                 xfil{i} = files{f};
             else
+                % Same bird, next timepoint
                 if real_times
-                    xtickl{i} = xtime{i};
+                    xtickl{i} = sprintf('{%s}', xtime{i});
                 else
                     xtickl{i} = sprintf('t^*_%d', i-n_so_far);
                 end
-                xtabl{i} = ' ';
+                xtabl{i} = '     ';
                 xfil{i} = '';
             end
             sylly_counts(i) = length(find(confusions{f}(:,1)==id));
@@ -157,7 +175,7 @@ function [] = replot_accuracies_concatanated(varargin)
     try
         subplot(1,2,1);
         scatter(confusion(:,1)+offsets, confusion(:,2)*100, sizes, colours(binj,:), 'filled');
-        xlabel('Test syllable');
+        xlabel('Bird, syllable');
         ylabel('True Positives %');
         title('Correct detections');
         %if min(confusion(:,1)) ~= max(confusion(:,1))
@@ -171,7 +189,7 @@ function [] = replot_accuracies_concatanated(varargin)
         
         subplot(1,2,2);
         scatter(confusion(:,1)+offsets, confusion(:,3)*100, sizes, colours(binj,:), 'filled');
-        xlabel('Test syllable');
+        xlabel('Bird, syllable');
         ylabel('False Positives %');
         title('Incorrect detections');
         %if length(ids) > 1

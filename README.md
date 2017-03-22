@@ -49,7 +49,7 @@ Create a MATLAB script file (`params.m`, also in the current directory, containi
     * Add the line "times_of_interest_ms = [x y z ...]" for trigger times at x, y, and z (etc) milliseconds.  You need at least one time _x_.
   * `params.m` can also override any of the other parameters whose defaults are in the Configuration section at the top of `learn_detector.m`.
 
-Alternatively, you can pass parameters to the learner in the standard MATLAB manner, such as (for example) `learn_detector('times_of_interest_ms', [137 291], 'nruns', 20, 'time_window_ms', 80)'.
+Alternatively, you can pass parameters to the learner in the standard MATLAB manner, such as (for example) `learn_detector('times_of_interest_ms', [137 291], 'nruns', 20, 'time_window_ms', 80)`
 
 When `learn_detector` is run with `times_of_interest_ms` defined.  It will produce two files:
 * `detector_<times_of_interest>_<other information>.mat`, the network file.

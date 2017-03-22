@@ -46,11 +46,11 @@ Run `learn_detector`.  It will open `./song.mat`.  If you have not completed the
 
 Create a MATLAB script file (`params.m`, also in the current directory, containing configuration and training parameters:
   * If it doesn't exist, or is empty, `learn_detector` will pop up the spectrograms and then stop.
-    * Add the line "times_of_interest_ms = [x y z ...]" for trigger times at x, y, and z (etc) milliseconds.  You need at least one time _x_.
+    * Add the line `times_of_interest_ms = [x y z ...]` for trigger times at x, y, and z (etc) milliseconds.  You need at least one time _x_.
   * `params.m` can also override any of the other parameters whose defaults are in the Configuration section at the top of `learn_detector.m`.
 
-Alternatively, you can pass parameters to the learner in the standard MATLAB manner, such as (for example) `learn_detector('times_of_interest_ms', [137 291], 'nruns', 20, 'time_window_ms', 80)`
+Alternatively, you can pass parameters to the learner in the standard MATLAB manner, such as (for example) `learn_detector('times_of_interest_ms', [137 291], 'nruns', 20, 'time_window_ms', 80)` If you specify a parameter in `params.m` and also in the function argument list, the latter will win.
 
-When `learn_detector` is run with `times_of_interest_ms` defined.  It will produce two files:
+When `learn_detector` is run with `times_of_interest_ms` defined,  It will produce two files:
 * `detector_<times_of_interest>_<other information>.mat`, the network file.
 * `songs_<nsongs>_<times_of_interest_1>.wav`, an audio test file containing all the provided songs in the left channel and short pulses on the right channel at `times_of_interest(1)` for each provided song.  This may be used for testing the realtime detector.
